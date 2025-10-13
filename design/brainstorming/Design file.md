@@ -1,0 +1,3 @@
+Changes for the SleepSchedule concept:
+- First, every action in my SleepSchedule concept accepted a composite object of either Time or Date. This could be problematic because they are both mutable objects so if a reference is attached to the argument passed in, the state of the concept could be mutated. Therefore, I have changed these so that they will be passed in as strings and internally be handled with Time and Date objects. 
+- SleepSlot user must exist in actions change: this would mean that there must be an action to add users to state otherwise no actions could be done. So I removed this requires clause because it is uneccessary.
