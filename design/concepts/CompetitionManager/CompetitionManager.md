@@ -1,8 +1,14 @@
-# Concept: CompetitionManager
 
+[@concept-design-brief](../../background/concept-design-brief.md)
+
+[@concept-design-overview](../../background/concept-design-overview.md)
+
+[@concept-specifications](../../background/concept-specifications.md)
+
+# Concept: CompetitionManager
 - **concept**: CompetitionManager [User]
 - **purpose**: manage multiple sleep-adherence competitions between users, each tracking daily bedtime and wake-up performance over a defined time period and establishing a winner based off of scores.
-- **principle**: Users initiate competitions with one or more other users, specifying a start and end date. Throughout the competition duration, participants' sleep adherence events (bedtime and wake-up) are recorded. Based on the success or failure of these events, individual scores are accumulated. Upon the competition's conclusion, these scores are tallied, and a winner is determined, with provisions for handling ties.
+- **principle**: Users initiate competitions with one or more other users, specifying a start and end date. Throughout the competition duration, participants' sleep adherence events (bedtime and wake-up) are recorded. Based on the success or failure of these events, individual scores are accumulated. Upon the competition's conclusion, these scores are tallied, and a winner (or set of tied winners) is determined, with provisions for handling cases where all participants tie. During or after a competition, a ranked leaderboard can be generated, and participants can be removed from active competitions under certain conditions.
 - types:
 	- `SleepEventType`: An enumeration representing the type of sleep event.
         *   `BEDTIME`: Represents the event of going to bed.
@@ -52,4 +58,42 @@
         - c.active must be true
         - **effects**: return the User IDs of the users in competition c with the greatest sum of wakeUpScore + bedTimeScore and set this ID to the winner state (if tie among all participants keep winner as null)
 	        - also change active flag to false for competition c
+	        *   `getLeaderboard (competitionId: CompetitionId): List<{position: Number, userId: UserId, totalScore: Number}>`
+        *   **purpose**: To provide a ranked list of participants and their current total scores for a given competition, ordered from highest to lowest score.
+        *   **requires**:
+            *   `competitionId` must refer to an existing `Competition c` in `competitions`.
+        *   **effects**:
+            *   Retrieves the `Competition c` identified by `competitionId`.
+            *   Creates a temporary list `leaderboardEntries` of `{userId: UserId, totalScore: Number}`.
+            *   For each `userId` in `c.participants`:
+                *   Retrieves the `CompetitionScore cs` for `userId` and `c.id` from `competitionScores`. (Guaranteed to exist by `I4`).
+                *   Calculates `totalScore = cs.wakeUpScore + cs.bedTimeScore`.
+                *   Adds `{userId, totalScore}` to `leaderboardEntries`.
+            *   Sorts `leaderboardEntries` in descending order by `totalScore`.
+            *   Initializes `rankedLeaderboard: List<{position: Number, userId: UserId, totalScore: Number}>`.
+            *   Initializes `currentPosition = 1`, `lastScore = null`.
+            *   Iterates through sorted `leaderboardEntries` with their 0-based index:
+                *   Let `currentEntry = leaderboardEntries[index]`.
+                *   If `lastScore` is `null` or `currentEntry.totalScore < lastScore`:
+                    *   `currentPosition = index + 1`.
+                *   Adds `{position: currentPosition, userId: currentEntry.userId, totalScore: currentEntry.totalScore}` to `rankedLeaderboard`.
+                *   `lastScore = currentEntry.totalScore`.
+            *   Returns `rankedLeaderboard`.
+
+    *   `removeParticipant (competitionId: CompetitionId, userId: UserId)`
+        *   **purpose**: To remove a specific user from an active competition and clear their associated scores. If the competition no longer has a viable number of participants, it is deactivated.
+        *   **requires**:
+            *   `competitionId` must refer to an existing `Competition c` in `competitions`.
+            *   `c.active` must be `true`.
+            *   `userId` must be a member of `c.participants`.
+            *   `c.participants.size()` must be greater than 1 (to ensure the removal doesn't lead to an invalid state, *before* considering the 'less than 2' rule for deactivation). A competition with only one participant effectively doesn't exist.
+        *   **effects**:
+            *   Retrieves the `Competition c` identified by `competitionId`.
+            *   Removes `userId` from `c.participants`.
+            *   Removes the `CompetitionScore cs` where `cs.competitionId == competitionId` and `cs.userId == userId` from `competitionScores`.
+            *   If `c.participants.size() < 2` (i.e., fewer than two participants remain after removal):
+                *   Sets `c.active` to `false`.
+                *   Sets `c.winners` to `null` (as the competition is no longer viable and cannot have meaningful winners).
 	    
+
+
