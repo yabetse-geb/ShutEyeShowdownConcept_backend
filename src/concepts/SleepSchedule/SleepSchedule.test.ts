@@ -20,8 +20,8 @@ function normalizeDateString(dateStr: string): Date {
 function expectSleepSlot(slot: unknown): asserts slot is {
   u: ID;
   date: Date;
-  bedTime: string;
-  wakeUpTime: string;
+  bedTime: Date;
+  wakeUpTime: Date;
   bedTimeSuccess: boolean | null;
   wakeUpSuccess: boolean | null;
 } {
@@ -32,398 +32,427 @@ function expectSleepSlot(slot: unknown): asserts slot is {
   }
 }
 
+// Helper to parse date strings in "YYYY-MM-DD" format
+function formatDateTime(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
+
 Deno.test("SleepSchedule: Operational Principle (Success Scenario)", async () => {
   console.log("\n--- Starting Test: Operational Principle (Alice, 2023-01-01) ---");
   const [db, client] = await testDb();
-  const sleepSchedule = new SleepScheduleConcept(db);
+  try{
+    const sleepSchedule = new SleepScheduleConcept(db);
 
-  const userAlice = "user:Alice" as ID;
-  const date1 = "2023-01-01";
-  const targetBedtime = "22:00";
-  const targetWakeup = "07:00";
-  const earlyBedtime = "21:30"; // Success
-  const earlyWakeup = "06:45"; // Success
+    const userAlice = "user:Alice" as ID;
+    const date1 = "2023-01-01";
+    const targetBedtime = "2023-01-01T22:00";
+    const targetWakeup = "2023-01-02T07:00";
+    const earlyBedtime = "2023-01-01T21:30"; // Success
+    const earlyWakeup = "2023-01-02T06:45"; // Success
 
-  // Alice adds a sleep slot
-  const addSlotResult = await sleepSchedule.addSleepSlot({
-    u: userAlice,
-    bedTimeStr: targetBedtime,
-    wakeTimeStr: targetWakeup,
-    dateStr: date1,
-  });
-  console.log(`Action: addSleepSlot (${userAlice}, ${date1}, ${targetBedtime}, ${targetWakeup}) -> ${JSON.stringify(addSlotResult)}`);
-  assertEquals(addSlotResult, {}); // Expect Empty object
+    // Alice adds a sleep slot
+    const addSlotResult = await sleepSchedule.addSleepSlot({
+      u: userAlice,
+      bedTimeStr: targetBedtime,
+      wakeTimeStr: targetWakeup,
+      dateStr: date1,
+    });
+    console.log(`Action: addSleepSlot (${userAlice}, ${date1}, ${targetBedtime}, ${targetWakeup}) -> ${JSON.stringify(addSlotResult)}`);
+    assertEquals(addSlotResult, {}); // Expect Empty object
 
-  // Verify initial state
-  const slot1_initial_raw = await sleepSchedule._getSleepSlot({ u: userAlice, dateStr: date1 });
-  console.log(`Query: _getSleepSlot (${userAlice}, ${date1}) -> ${JSON.stringify(slot1_initial_raw)}`);
-  // Use type guard to assert that the result is a SleepSlot
-  expectSleepSlot(slot1_initial_raw);
+    // Verify initial state
+    const slot1_initial_raw = await sleepSchedule._getSleepSlot({ u: userAlice, dateStr: date1 });
+    console.log(`Query: _getSleepSlot (${userAlice}, ${date1}) -> ${JSON.stringify(slot1_initial_raw)}`);
+    // Use type guard to assert that the result is a SleepSlot
+    expectSleepSlot(slot1_initial_raw);
 
-  assertEquals(slot1_initial_raw.u, userAlice);
-  assertEquals(slot1_initial_raw.date.getTime(), normalizeDateString(date1).getTime());
-  assertEquals(slot1_initial_raw.bedTime, targetBedtime);
-  assertEquals(slot1_initial_raw.wakeUpTime, targetWakeup);
-  assertEquals(slot1_initial_raw.bedTimeSuccess, null);
-  assertEquals(slot1_initial_raw.wakeUpSuccess, null);
+    assertEquals(slot1_initial_raw.u, userAlice);
+    assertEquals(slot1_initial_raw.date.getTime(), normalizeDateString(date1).getTime());
+    assertEquals(formatDateTime(slot1_initial_raw.bedTime), targetBedtime);
+    assertEquals(formatDateTime(slot1_initial_raw.wakeUpTime), targetWakeup);
+    assertEquals(slot1_initial_raw.bedTimeSuccess, null);
+    assertEquals(slot1_initial_raw.wakeUpSuccess, null);
 
-  // Alice reports bedtime successfully
-  const reportBedtimeResult = await sleepSchedule.reportBedTime({
-    u: userAlice,
-    reportedTimeStr: earlyBedtime,
-    dateStr: date1,
-  });
-  console.log(`Action: reportBedtime (${userAlice}, ${date1}, ${earlyBedtime}) -> ${JSON.stringify(reportBedtimeResult)}`);
-  assertEquals(reportBedtimeResult, { bedTimeSuccess: true });
+    // Alice reports bedtime successfully
+    const reportBedtimeResult = await sleepSchedule.reportBedTime({
+      u: userAlice,
+      reportedTimeStr: earlyBedtime,
+      dateStr: date1,
+    });
+    console.log(`Action: reportBedtime (${userAlice}, ${date1}, ${earlyBedtime}) -> ${JSON.stringify(reportBedtimeResult)}`);
+    assertEquals(reportBedtimeResult, { bedTimeSuccess: true });
 
-  // Alice reports wake-up successfully
-  const reportWakeupResult = await sleepSchedule.reportWakeUpTime({
-    u: userAlice,
-    reportedTimeStr: earlyWakeup,
-    dateStr: date1,
-  });
-  console.log(`Action: reportWakeUpTime (${userAlice}, ${date1}, ${earlyWakeup}) -> ${JSON.stringify(reportWakeupResult)}`);
-  assertEquals(reportWakeupResult, { wakeUpSuccess: true });
+    // Alice reports wake-up unsuccessfully
+    const reportWakeupResult = await sleepSchedule.reportWakeUpTime({
+      u: userAlice,
+      reportedTimeStr: earlyWakeup,
+      dateStr: date1,
+    });
+    console.log(`Action: reportWakeUpTime (${userAlice}, ${date1}, ${earlyWakeup}) -> ${JSON.stringify(reportWakeupResult)}`);
+    assertEquals(reportWakeupResult, { wakeUpSuccess: false });
 
-  // Verify final state for the principle
-  const slot1_final_raw = await sleepSchedule._getSleepSlot({ u: userAlice, dateStr: date1 });
-  console.log(`Query: _getSleepSlot (${userAlice}, ${date1}) -> ${JSON.stringify(slot1_final_raw)}`);
-  // Use type guard again
-  expectSleepSlot(slot1_final_raw);
+    // Verify final state for the principle
+    const slot1_final_raw = await sleepSchedule._getSleepSlot({ u: userAlice, dateStr: date1 });
+    console.log(`Query: _getSleepSlot (${userAlice}, ${date1}) -> ${JSON.stringify(slot1_final_raw)}`);
+    // Use type guard again
+    expectSleepSlot(slot1_final_raw);
 
 
-  assertEquals(slot1_final_raw.bedTimeSuccess, true);
-  assertEquals(slot1_final_raw.wakeUpSuccess, true);
+    assertEquals(slot1_final_raw.bedTimeSuccess, true);
+    assertEquals(slot1_final_raw.wakeUpSuccess, false);
 
-  await client.close();
-  console.log("--- Finished Test: Operational Principle ---");
+    console.log("--- Finished Test: Operational Principle ---");
+  }finally {
+    await client.close();
+  }
 });
 
 Deno.test("SleepSchedule: Invalid Inputs & Precondition Failures", async () => {
   console.log("\n--- Starting Test: Invalid Inputs & Precondition Failures ---");
   const [db, client] = await testDb();
   const sleepSchedule = new SleepScheduleConcept(db);
+  try{
+    const userAlice = "user:Alice" as ID;
+    const userCharlie = "user:Charlie" as ID;
+    const date2 = "2023-01-02";
+    const date3 = "2023-01-03";
+    const targetBedtime = "2023-01-01T22:00";
+    const targetWakeup = "2023-01-02T07:00";
+    const earlyBedtime = "2023-01-01T21:30"; // Valid time
 
-  const userAlice = "user:Alice" as ID;
-  const userCharlie = "user:Charlie" as ID;
-  const date2 = "2023-01-02";
-  const date3 = "2023-01-03";
-  const targetBedtime = "22:00";
-  const targetWakeup = "07:00";
-  const earlyBedtime = "21:30"; // Valid time
+    // Test addSleepSlot with invalid date
+    const invalidDateResult = await sleepSchedule.addSleepSlot({
+      u: userAlice,
+      bedTimeStr: targetBedtime,
+      wakeTimeStr: targetWakeup,
+      dateStr: "not-a-date",
+    });
+    console.log(`Action: addSleepSlot (invalid date) -> ${JSON.stringify(invalidDateResult)}`);
+    assertEquals(invalidDateResult, { error: "Invalid date string provided." });
 
-  // Test addSleepSlot with invalid date
-  const invalidDateResult = await sleepSchedule.addSleepSlot({
-    u: userAlice,
-    bedTimeStr: targetBedtime,
-    wakeTimeStr: targetWakeup,
-    dateStr: "not-a-date",
-  });
-  console.log(`Action: addSleepSlot (invalid date) -> ${JSON.stringify(invalidDateResult)}`);
-  assertEquals(invalidDateResult, { error: "Invalid date string provided." });
+    // Test addSleepSlot with invalid time format
+    const invalidBedtimeFormatResult = await sleepSchedule.addSleepSlot({
+      u: userAlice,
+      bedTimeStr: "22-00", // Invalid format
+      wakeTimeStr: targetWakeup,
+      dateStr: date2,
+    });
+    console.log(`Action: addSleepSlot (invalid bedtime format) -> ${JSON.stringify(invalidBedtimeFormatResult)}`);
+    assertEquals(invalidBedtimeFormatResult, { error: "Invalid bedtime string format. Expected YYYY-MM-DDTHH:MM" });
 
-  // Test addSleepSlot with invalid time format
-  const invalidBedtimeFormatResult = await sleepSchedule.addSleepSlot({
-    u: userAlice,
-    bedTimeStr: "22-00", // Invalid format
-    wakeTimeStr: targetWakeup,
-    dateStr: date2,
-  });
-  console.log(`Action: addSleepSlot (invalid bedtime format) -> ${JSON.stringify(invalidBedtimeFormatResult)}`);
-  assertEquals(invalidBedtimeFormatResult, { error: "Invalid bedtime string format. Expected HH:MM." });
-
-  const invalidWakeupFormatResult = await sleepSchedule.addSleepSlot({
-    u: userAlice,
-    bedTimeStr: targetBedtime,
-    wakeTimeStr: "7AM", // Invalid format
-    dateStr: date3, // Using a new date to prevent collision with date2 test setup
-  });
-  console.log(`Action: addSleepSlot (invalid wakeup format) -> ${JSON.stringify(invalidWakeupFormatResult)}`);
-  assertEquals(invalidWakeupFormatResult, { error: "Invalid wake-up time string format. Expected HH:MM." });
+    const invalidWakeupFormatResult = await sleepSchedule.addSleepSlot({
+      u: userAlice,
+      bedTimeStr: targetBedtime,
+      wakeTimeStr: "7AM", // Invalid format
+      dateStr: date3, // Using a new date to prevent collision with date2 test setup
+    });
+    console.log(`Action: addSleepSlot (invalid wakeup format) -> ${JSON.stringify(invalidWakeupFormatResult)}`);
+    assertEquals(invalidWakeupFormatResult, { error: "Invalid wake-up time string format. Expected YYYY-MM-DDTHH:MM" });
 
 
-  // Test addSleepSlot for an already existing slot (duplicate)
-  const firstAddResult = await sleepSchedule.addSleepSlot({ u: userAlice, bedTimeStr: targetBedtime, wakeTimeStr: targetWakeup, dateStr: date2 }); // Create it first
-  console.log(`Action: addSleepSlot (${userAlice}, ${date2}) - first call successful -> ${JSON.stringify(firstAddResult)}`);
-  assertEquals(firstAddResult, {});
+    // Test addSleepSlot for an already existing slot (duplicate)
+    const firstAddResult = await sleepSchedule.addSleepSlot({ u: userAlice, bedTimeStr: targetBedtime, wakeTimeStr: targetWakeup, dateStr: date2 }); // Create it first
+    console.log(`Action: addSleepSlot (${userAlice}, ${date2}) - first call successful -> ${JSON.stringify(firstAddResult)}`);
+    assertEquals(firstAddResult, {});
 
-  const duplicateSlotResult = await sleepSchedule.addSleepSlot({
-    u: userAlice,
-    bedTimeStr: targetBedtime,
-    wakeTimeStr: targetWakeup,
-    dateStr: date2,
-  });
-  console.log(`Action: addSleepSlot (${userAlice}, ${date2}) - duplicate call -> ${JSON.stringify(duplicateSlotResult)}`);
-  assertEquals(duplicateSlotResult, { error: `Sleep schedule already exists for user ${userAlice} on ${date2}.` });
+    const duplicateSlotResult = await sleepSchedule.addSleepSlot({
+      u: userAlice,
+      bedTimeStr: targetBedtime,
+      wakeTimeStr: targetWakeup,
+      dateStr: date2,
+    });
+    console.log(`Action: addSleepSlot (${userAlice}, ${date2}) - duplicate call -> ${JSON.stringify(duplicateSlotResult)}`);
+    assertEquals(duplicateSlotResult, { error: `Sleep schedule already exists for user ${userAlice} on ${date2}.` });
 
-  // Test removeSleepSlot for a non-existent slot
-  const removeNonExistentResult = await sleepSchedule.removeSleepSlot({ u: userCharlie, dateStr: date3 });
-  console.log(`Action: removeSleepSlot (non-existent ${userCharlie}, ${date3}) -> ${JSON.stringify(removeNonExistentResult)}`);
-  assertEquals(removeNonExistentResult, { error: `No sleep schedule found for user ${userCharlie} on ${date3} to remove.` });
+    // Test removeSleepSlot for a non-existent slot
+    const removeNonExistentResult = await sleepSchedule.removeSleepSlot({ u: userCharlie, dateStr: date3 });
+    console.log(`Action: removeSleepSlot (non-existent ${userCharlie}, ${date3}) -> ${JSON.stringify(removeNonExistentResult)}`);
+    assertEquals(removeNonExistentResult, { error: `No sleep schedule found for user ${userCharlie} on ${date3} to remove.` });
 
-  // Test reportBedTime for a non-existent slot
-  const reportNonExistentBedtime = await sleepSchedule.reportBedTime({
-    u: userCharlie,
-    reportedTimeStr: earlyBedtime,
-    dateStr: date3,
-  });
-  console.log(`Action: reportBedTime (non-existent ${userCharlie}, ${date3}) -> ${JSON.stringify(reportNonExistentBedtime)}`);
-  assertEquals(reportNonExistentBedtime, { error: `No sleep schedule set for user ${userCharlie} on ${date3} to report bedtime.` });
+    // Test reportBedTime for a non-existent slot
+    const reportNonExistentBedtime = await sleepSchedule.reportBedTime({
+      u: userCharlie,
+      reportedTimeStr: earlyBedtime,
+      dateStr: date3,
+    });
+    console.log(`Action: reportBedTime (non-existent ${userCharlie}, ${date3}) -> ${JSON.stringify(reportNonExistentBedtime)}`);
+    assertEquals(reportNonExistentBedtime, { error: `No sleep schedule set for user ${userCharlie} on ${date3} to report bedtime.` });
 
-  // Test reportWakeUpTime for a non-existent slot
-  const reportNonExistentWakeup = await sleepSchedule.reportWakeUpTime({
-    u: userCharlie,
-    reportedTimeStr: earlyBedtime, // Using earlyBedtime as a valid time string, not event type
-    dateStr: date3,
-  });
-  console.log(`Action: reportWakeUpTime (non-existent ${userCharlie}, ${date3}) -> ${JSON.stringify(reportNonExistentWakeup)}`);
-  assertEquals(reportNonExistentWakeup, { error: `No sleep schedule set for user ${userCharlie} on ${date3} to report wake-up time.` });
+    // Test reportWakeUpTime for a non-existent slot
+    const reportNonExistentWakeup = await sleepSchedule.reportWakeUpTime({
+      u: userCharlie,
+      reportedTimeStr: earlyBedtime, // Using earlyBedtime as a valid time string, not event type
+      dateStr: date3,
+    });
+    console.log(`Action: reportWakeUpTime (non-existent ${userCharlie}, ${date3}) -> ${JSON.stringify(reportNonExistentWakeup)}`);
+    assertEquals(reportNonExistentWakeup, { error: `No sleep schedule set for user ${userCharlie} on ${date3} to report wake-up time.` });
 
-  // Test reportBedTime with invalid reported time string for an existing slot
-  const addSlotForInvalidReport = await sleepSchedule.addSleepSlot({ u: userAlice, bedTimeStr: targetBedtime, wakeTimeStr: targetWakeup, dateStr: date3 });
-  assertEquals(addSlotForInvalidReport, {});
-  const invalidReportedBedtime = await sleepSchedule.reportBedTime({
-    u: userAlice,
-    reportedTimeStr: "invalid-time",
-    dateStr: date3,
-  });
-  console.log(`Action: reportBedTime (invalid reported time) -> ${JSON.stringify(invalidReportedBedtime)}`);
-  assertEquals(invalidReportedBedtime, { error: "Invalid reported bedtime string format. Expected HH:MM." });
+    // Test reportBedTime with invalid reported time string for an existing slot
+    const addSlotForInvalidReport = await sleepSchedule.addSleepSlot({ u: userAlice, bedTimeStr: targetBedtime, wakeTimeStr: targetWakeup, dateStr: date3 });
+    assertEquals(addSlotForInvalidReport, {});
+    const invalidReportedBedtime = await sleepSchedule.reportBedTime({
+      u: userAlice,
+      reportedTimeStr: "invalid-time",
+      dateStr: date3,
+    });
+    console.log(`Action: reportBedTime (invalid reported time) -> ${JSON.stringify(invalidReportedBedtime)}`);
+    assertEquals(invalidReportedBedtime, { error: "Invalid reported bedtime string format. Expected YYYY-MM-DDTHH:MM" });
 
-  await client.close();
-  console.log("--- Finished Test: Invalid Inputs & Precondition Failures ---");
+    await client.close();
+    console.log("--- Finished Test: Invalid Inputs & Precondition Failures ---");
+  } finally {
+    await client.close();
+  }
 });
 
 Deno.test("SleepSchedule: Reporting Failures (Missed Targets)", async () => {
   console.log("\n--- Starting Test: Reporting Failures (Bob, 2023-01-02) ---");
   const [db, client] = await testDb();
   const sleepSchedule = new SleepScheduleConcept(db);
+  try{
+    const userBob = "user:Bob" as ID;
+    const date2 = "2023-01-02";
+    const targetBedtime = "2023-01-02T22:00";
+    const targetWakeup = "2023-01-03T07:00";
+    const lateBedtime = "2023-01-02T22:30";  // Failure
+    const lateWakeup = "2023-01-03T07:30";  // Failure
 
-  const userBob = "user:Bob" as ID;
-  const date2 = "2023-01-02";
-  const targetBedtime = "22:00";
-  const targetWakeup = "07:00";
-  const lateBedtime = "22:30";  // Failure
-  const lateWakeup = "07:30";  // Failure
+    // Bob adds a sleep slot
+    const addSlotBobResult = await sleepSchedule.addSleepSlot({
+      u: userBob,
+      bedTimeStr: targetBedtime,
+      wakeTimeStr: targetWakeup,
+      dateStr: date2,
+    });
+    console.log(`Action: addSleepSlot (${userBob}, ${date2}) -> ${JSON.stringify(addSlotBobResult)}`);
+    assertEquals(addSlotBobResult, {});
 
-  // Bob adds a sleep slot
-  const addSlotBobResult = await sleepSchedule.addSleepSlot({
-    u: userBob,
-    bedTimeStr: targetBedtime,
-    wakeTimeStr: targetWakeup,
-    dateStr: date2,
-  });
-  console.log(`Action: addSleepSlot (${userBob}, ${date2}) -> ${JSON.stringify(addSlotBobResult)}`);
-  assertEquals(addSlotBobResult, {});
+    // Bob reports bedtime late (missed target)
+    const reportBedtimeFailResult = await sleepSchedule.reportBedTime({
+      u: userBob,
+      reportedTimeStr: lateBedtime,
+      dateStr: date2,
+    });
+    console.log(`Action: reportBedtime (${userBob}, ${date2}, ${lateBedtime}) -> ${JSON.stringify(reportBedtimeFailResult)}`);
+    assertEquals(reportBedtimeFailResult, { bedTimeSuccess: false });
 
-  // Bob reports bedtime late (missed target)
-  const reportBedtimeFailResult = await sleepSchedule.reportBedTime({
-    u: userBob,
-    reportedTimeStr: lateBedtime,
-    dateStr: date2,
-  });
-  console.log(`Action: reportBedtime (${userBob}, ${date2}, ${lateBedtime}) -> ${JSON.stringify(reportBedtimeFailResult)}`);
-  assertEquals(reportBedtimeFailResult, { bedTimeSuccess: false });
+    // Bob reports wake-up late (missed target)
+    const reportWakeupFailResult = await sleepSchedule.reportWakeUpTime({
+      u: userBob,
+      reportedTimeStr: lateWakeup,
+      dateStr: date2,
+    });
+    console.log(`Action: reportWakeUpTime (${userBob}, ${date2}, ${lateWakeup}) -> ${JSON.stringify(reportWakeupFailResult)}`);
+    assertEquals(reportWakeupFailResult, { wakeUpSuccess: false });
 
-  // Bob reports wake-up late (missed target)
-  const reportWakeupFailResult = await sleepSchedule.reportWakeUpTime({
-    u: userBob,
-    reportedTimeStr: lateWakeup,
-    dateStr: date2,
-  });
-  console.log(`Action: reportWakeUpTime (${userBob}, ${date2}, ${lateWakeup}) -> ${JSON.stringify(reportWakeupFailResult)}`);
-  assertEquals(reportWakeupFailResult, { wakeUpSuccess: false });
-
-  // Verify final state for Bob
-  const slotBob_final_raw = await sleepSchedule._getSleepSlot({ u: userBob, dateStr: date2 });
-  console.log(`Query: _getSleepSlot (${userBob}, ${date2}) -> ${JSON.stringify(slotBob_final_raw)}`);
-  // Use type guard
-  // assert(isSleepSlot(slotBob_final_raw), `Expected a SleepSlot object, but received: ${JSON.stringify(slotBob_final_raw)}`);
-  expectSleepSlot(slotBob_final_raw);
+    // Verify final state for Bob
+    const slotBob_final_raw = await sleepSchedule._getSleepSlot({ u: userBob, dateStr: date2 });
+    console.log(`Query: _getSleepSlot (${userBob}, ${date2}) -> ${JSON.stringify(slotBob_final_raw)}`);
+    // Use type guard
+    // assert(isSleepSlot(slotBob_final_raw), `Expected a SleepSlot object, but received: ${JSON.stringify(slotBob_final_raw)}`);
+    expectSleepSlot(slotBob_final_raw);
 
 
-  assertEquals(slotBob_final_raw.bedTimeSuccess, false);
-  assertEquals(slotBob_final_raw.wakeUpSuccess, false);
+    assertEquals(slotBob_final_raw.bedTimeSuccess, false);
+    assertEquals(slotBob_final_raw.wakeUpSuccess, false);
 
-  await client.close();
-  console.log("--- Finished Test: Reporting Failures ---");
+    await client.close();
+    console.log("--- Finished Test: Reporting Failures ---");
+  } finally {
+    await client.close();
+  }
 });
 
 Deno.test("SleepSchedule: Multiple Users and Dates", async () => {
   console.log("\n--- Starting Test: Multiple Users and Dates ---");
   const [db, client] = await testDb();
   const sleepSchedule = new SleepScheduleConcept(db);
+  try{
+    const userAlice = "user:Alice" as ID;
+    const userBob = "user:Bob" as ID;
+    const date3 = "2023-01-03";
 
-  const userAlice = "user:Alice" as ID;
-  const userBob = "user:Bob" as ID;
-  const date3 = "2023-01-03";
+    // Alice adds a slot for date3
+    const aliceAdd3 = await sleepSchedule.addSleepSlot({
+      u: userAlice,
+      bedTimeStr: "2023-01-03T23:00",
+      wakeTimeStr: "2023-01-04T08:00",
+      dateStr: date3,
+    });
+    console.log(`Action: addSleepSlot (${userAlice}, ${date3}) -> ${JSON.stringify(aliceAdd3)}`);
+    assertEquals(aliceAdd3, {});
 
-  // Alice adds a slot for date3
-  const aliceAdd3 = await sleepSchedule.addSleepSlot({
-    u: userAlice,
-    bedTimeStr: "23:00",
-    wakeTimeStr: "08:00",
-    dateStr: date3,
-  });
-  console.log(`Action: addSleepSlot (${userAlice}, ${date3}) -> ${JSON.stringify(aliceAdd3)}`);
-  assertEquals(aliceAdd3, {});
+    // Bob adds a slot for date3
+    const bobAdd3 = await sleepSchedule.addSleepSlot({
+      u: userBob,
+      bedTimeStr: "2023-01-03T21:00",
+      wakeTimeStr: "2023-01-04T06:00",
+      dateStr: date3,
+    });
+    console.log(`Action: addSleepSlot (${userBob}, ${date3}) -> ${JSON.stringify(bobAdd3)}`);
+    assertEquals(bobAdd3, {});
 
-  // Bob adds a slot for date3
-  const bobAdd3 = await sleepSchedule.addSleepSlot({
-    u: userBob,
-    bedTimeStr: "21:00",
-    wakeTimeStr: "06:00",
-    dateStr: date3,
-  });
-  console.log(`Action: addSleepSlot (${userBob}, ${date3}) -> ${JSON.stringify(bobAdd3)}`);
-  assertEquals(bobAdd3, {});
+    // Alice reports for date3 (success)
+    const aliceReportBedtime3 = await sleepSchedule.reportBedTime({
+      u: userAlice,
+      reportedTimeStr: "2023-01-03T22:45",
+      dateStr: date3,
+    });
+    console.log(`Action: reportBedtime (${userAlice}, ${date3}) -> ${JSON.stringify(aliceReportBedtime3)}`);
+    assertEquals(aliceReportBedtime3, { bedTimeSuccess: true });
 
-  // Alice reports for date3 (success)
-  const aliceReportBedtime3 = await sleepSchedule.reportBedTime({
-    u: userAlice,
-    reportedTimeStr: "22:45",
-    dateStr: date3,
-  });
-  console.log(`Action: reportBedtime (${userAlice}, ${date3}) -> ${JSON.stringify(aliceReportBedtime3)}`);
-  assertEquals(aliceReportBedtime3, { bedTimeSuccess: true });
+    // Bob reports for date3 (failure)
+    const bobReportWakeup3 = await sleepSchedule.reportWakeUpTime({
+      u: userBob,
+      reportedTimeStr: "2023-01-04T06:15", // After target 06:00
+      dateStr: date3,
+    });
+    console.log(`Action: reportWakeUpTime (${userBob}, ${date3}) -> ${JSON.stringify(bobReportWakeup3)}`);
+    assertEquals(bobReportWakeup3, { wakeUpSuccess: false });
 
-  // Bob reports for date3 (failure)
-  const bobReportWakeup3 = await sleepSchedule.reportWakeUpTime({
-    u: userBob,
-    reportedTimeStr: "06:15", // After target 06:00
-    dateStr: date3,
-  });
-  console.log(`Action: reportWakeUpTime (${userBob}, ${date3}) -> ${JSON.stringify(bobReportWakeup3)}`);
-  assertEquals(bobReportWakeup3, { wakeUpSuccess: false });
+    // Verify Alice's slot for date3
+    const aliceSlot3_raw = await sleepSchedule._getSleepSlot({ u: userAlice, dateStr: date3 });
+    console.log(`Query: _getSleepSlot (${userAlice}, ${date3}) -> ${JSON.stringify(aliceSlot3_raw)}`);
+    // Use type guard
+    expectSleepSlot(aliceSlot3_raw);
 
-  // Verify Alice's slot for date3
-  const aliceSlot3_raw = await sleepSchedule._getSleepSlot({ u: userAlice, dateStr: date3 });
-  console.log(`Query: _getSleepSlot (${userAlice}, ${date3}) -> ${JSON.stringify(aliceSlot3_raw)}`);
-  // Use type guard
-  expectSleepSlot(aliceSlot3_raw);
+    assertEquals(aliceSlot3_raw.bedTimeSuccess, true);
+    assertEquals(aliceSlot3_raw.wakeUpSuccess, null); // Not reported yet
 
-  assertEquals(aliceSlot3_raw.bedTimeSuccess, true);
-  assertEquals(aliceSlot3_raw.wakeUpSuccess, null); // Not reported yet
-
-  // Verify Bob's slot for date3
-  const bobSlot3_raw = await sleepSchedule._getSleepSlot({ u: userBob, dateStr: date3 });
-  console.log(`Query: _getSleepSlot (${userBob}, ${date3}) -> ${JSON.stringify(bobSlot3_raw)}`);
-  // Use type guard
-  expectSleepSlot(bobSlot3_raw);
+    // Verify Bob's slot for date3
+    const bobSlot3_raw = await sleepSchedule._getSleepSlot({ u: userBob, dateStr: date3 });
+    console.log(`Query: _getSleepSlot (${userBob}, ${date3}) -> ${JSON.stringify(bobSlot3_raw)}`);
+    // Use type guard
+    expectSleepSlot(bobSlot3_raw);
 
 
-  assertEquals(bobSlot3_raw.bedTimeSuccess, null); // Not reported yet
-  assertEquals(bobSlot3_raw.wakeUpSuccess, false);
+    assertEquals(bobSlot3_raw.bedTimeSuccess, null); // Not reported yet
+    assertEquals(bobSlot3_raw.wakeUpSuccess, false);
 
-  await client.close();
-  console.log("--- Finished Test: Multiple Users and Dates ---");
+    await client.close();
+    console.log("--- Finished Test: Multiple Users and Dates ---");
+  }finally {
+    await client.close();
+  }
 });
 
 Deno.test("SleepSchedule: Remove Sleep Slot", async () => {
   console.log("\n--- Starting Test: Remove Sleep Slot ---");
   const [db, client] = await testDb();
   const sleepSchedule = new SleepScheduleConcept(db);
+  try{
+    const userAlice = "user:Alice" as ID;
+    const date4 = "2023-01-04";
+    const targetBedtime = "2023-01-04T22:00";
+    const targetWakeup = "2023-01-05T07:00";
 
-  const userAlice = "user:Alice" as ID;
-  const date4 = "2023-01-04";
-  const targetBedtime = "22:00";
-  const targetWakeup = "07:00";
+    // Alice adds a slot for date4
+    const addSlotResult = await sleepSchedule.addSleepSlot({
+      u: userAlice,
+      bedTimeStr: targetBedtime,
+      wakeTimeStr: targetWakeup,
+      dateStr: date4,
+    });
+    console.log(`Action: addSleepSlot (${userAlice}, ${date4}) -> ${JSON.stringify(addSlotResult)}`);
+    assertEquals(addSlotResult, {});
 
-  // Alice adds a slot for date4
-  const addSlotResult = await sleepSchedule.addSleepSlot({
-    u: userAlice,
-    bedTimeStr: targetBedtime,
-    wakeTimeStr: targetWakeup,
-    dateStr: date4,
-  });
-  console.log(`Action: addSleepSlot (${userAlice}, ${date4}) -> ${JSON.stringify(addSlotResult)}`);
-  assertEquals(addSlotResult, {});
-
-  // Verify it exists
-  let slot4_raw = await sleepSchedule._getSleepSlot({ u: userAlice, dateStr: date4 });
-  console.log(`Query: _getSleepSlot (${userAlice}, ${date4}) -> ${JSON.stringify(slot4_raw)}`);
-  // Use type guard
-  expectSleepSlot(slot4_raw);
+    // Verify it exists
+    let slot4_raw = await sleepSchedule._getSleepSlot({ u: userAlice, dateStr: date4 });
+    console.log(`Query: _getSleepSlot (${userAlice}, ${date4}) -> ${JSON.stringify(slot4_raw)}`);
+    // Use type guard
+    expectSleepSlot(slot4_raw);
 
 
-  assertEquals(slot4_raw.u, userAlice);
+    assertEquals(slot4_raw.u, userAlice);
 
-  // Alice removes the sleep slot for date4
-  const removeResult = await sleepSchedule.removeSleepSlot({ u: userAlice, dateStr: date4 });
-  console.log(`Action: removeSleepSlot (${userAlice}, ${date4}) -> ${JSON.stringify(removeResult)}`);
-  assertEquals(removeResult, {});
+    // Alice removes the sleep slot for date4
+    const removeResult = await sleepSchedule.removeSleepSlot({ u: userAlice, dateStr: date4 });
+    console.log(`Action: removeSleepSlot (${userAlice}, ${date4}) -> ${JSON.stringify(removeResult)}`);
+    assertEquals(removeResult, {});
 
-  // Verify it's no longer present
-  slot4_raw = await sleepSchedule._getSleepSlot({ u: userAlice, dateStr: date4 }); // Re-query after deletion
-  console.log(`Query: _getSleepSlot (${userAlice}, ${date4}) -> ${JSON.stringify(slot4_raw)}`);
-  assertEquals(slot4_raw, null); // Expect null after removal
+    // Verify it's no longer present
+    slot4_raw = await sleepSchedule._getSleepSlot({ u: userAlice, dateStr: date4 }); // Re-query after deletion
+    console.log(`Query: _getSleepSlot (${userAlice}, ${date4}) -> ${JSON.stringify(slot4_raw)}`);
+    assertEquals(slot4_raw, null); // Expect null after removal
 
-  await client.close();
-  console.log("--- Finished Test: Remove Sleep Slot ---");
+    await client.close();
+    console.log("--- Finished Test: Remove Sleep Slot ---");
+  }
+  finally {
+    await client.close();
+  }
 });
 
 Deno.test("SleepSchedule: _getAllSleepSlotsForUser Query", async () => {
   console.log("\n--- Starting Test: _getAllSleepSlotsForUser Query ---");
   const [db, client] = await testDb();
   const sleepSchedule = new SleepScheduleConcept(db);
+  try{
+    const userAlice = "user:Alice" as ID;
+    const userBob = "user:Bob" as ID;
+    const userCharlie = "user:Charlie" as ID;
 
-  const userAlice = "user:Alice" as ID;
-  const userBob = "user:Bob" as ID;
-  const userCharlie = "user:Charlie" as ID;
+    const date1 = "2023-01-01";
+    const date2 = "2023-01-02";
+    const date3 = "2023-01-03";
+    const date5 = "2023-01-05";
 
-  const date1 = "2023-01-01";
-  const date2 = "2023-01-02";
-  const date3 = "2023-01-03";
-  const date5 = "2023-01-05";
+    const targetBedtime = "2023-01-04T22:00";
+    const targetWakeup = "2023-01-05T07:00";
 
-  const targetBedtime = "22:00";
-  const targetWakeup = "07:00";
+    // Setup: Add multiple slots for Alice
+    await sleepSchedule.addSleepSlot({ u: userAlice, bedTimeStr: targetBedtime, wakeTimeStr: targetWakeup, dateStr: date1 });
+    await sleepSchedule.addSleepSlot({ u: userAlice, bedTimeStr: targetBedtime, wakeTimeStr: targetWakeup, dateStr: date2 });
+    await sleepSchedule.addSleepSlot({ u: userAlice, bedTimeStr: "2023-01-03T23:00", wakeTimeStr: "2023-01-04T08:00", dateStr: date3 });
+    await sleepSchedule.addSleepSlot({ u: userAlice, bedTimeStr: targetBedtime, wakeTimeStr: targetWakeup, dateStr: date5 });
+    console.log(`Setup: Added 4 sleep slots for ${userAlice}`);
 
-  // Setup: Add multiple slots for Alice
-  await sleepSchedule.addSleepSlot({ u: userAlice, bedTimeStr: targetBedtime, wakeTimeStr: targetWakeup, dateStr: date1 });
-  await sleepSchedule.addSleepSlot({ u: userAlice, bedTimeStr: targetBedtime, wakeTimeStr: targetWakeup, dateStr: date2 });
-  await sleepSchedule.addSleepSlot({ u: userAlice, bedTimeStr: "23:00", wakeTimeStr: "08:00", dateStr: date3 });
-  await sleepSchedule.addSleepSlot({ u: userAlice, bedTimeStr: targetBedtime, wakeTimeStr: targetWakeup, dateStr: date5 });
-  console.log(`Setup: Added 4 sleep slots for ${userAlice}`);
-
-  // Setup: Add multiple slots for Bob
-  await sleepSchedule.addSleepSlot({ u: userBob, bedTimeStr: targetBedtime, wakeTimeStr: targetWakeup, dateStr: date2 });
-  await sleepSchedule.addSleepSlot({ u: userBob, bedTimeStr: "21:00", wakeTimeStr: "06:00", dateStr: date3 });
-  console.log(`Setup: Added 2 sleep slots for ${userBob}`);
+    // Setup: Add multiple slots for Bob
+    await sleepSchedule.addSleepSlot({ u: userBob, bedTimeStr: targetBedtime, wakeTimeStr: targetWakeup, dateStr: date2 });
+    await sleepSchedule.addSleepSlot({ u: userBob, bedTimeStr: "2023-01-03T21:00", wakeTimeStr: "2023-01-04T06:00", dateStr: date3 });
+    console.log(`Setup: Added 2 sleep slots for ${userBob}`);
 
 
-  // Get all slots for Alice (should have date1, date2, date3, date5)
-  const aliceSlots = await sleepSchedule._getAllSleepSlotsForUser({ u: userAlice });
-  console.log(`Query: _getAllSleepSlotsForUser (${userAlice}) -> Found ${aliceSlots.length} slots.`);
+    // Get all slots for Alice (should have date1, date2, date3, date5)
+    const aliceSlots = await sleepSchedule._getAllSleepSlotsForUser({ u: userAlice });
+    console.log(`Query: _getAllSleepSlotsForUser (${userAlice}) -> Found ${aliceSlots.length} slots.`);
 
-  const expectedAliceDates = [date1, date2, date3, date5].map(normalizeDateString);
-  const foundAliceDates = aliceSlots.map(slot => slot.date); // aliceSlots is SleepSlot[]
+    const expectedAliceDates = [date1, date2, date3, date5].map(normalizeDateString);
+    const foundAliceDates = aliceSlots.map(slot => slot.date); // aliceSlots is SleepSlot[]
 
-  assertEquals(foundAliceDates.length, expectedAliceDates.length);
-  for (const expectedDate of expectedAliceDates) {
-    assertEquals(foundAliceDates.some(fd => fd.getTime() === expectedDate.getTime()), true, `Expected date ${expectedDate.toISOString()} not found for Alice.`);
+    assertEquals(foundAliceDates.length, expectedAliceDates.length);
+    for (const expectedDate of expectedAliceDates) {
+      assertEquals(foundAliceDates.some(fd => fd.getTime() === expectedDate.getTime()), true, `Expected date ${expectedDate.toISOString()} not found for Alice.`);
+    }
+    console.log(`Verified all expected dates for ${userAlice}`);
+
+    // Get all slots for Bob (should have date2, date3)
+    const bobSlots = await sleepSchedule._getAllSleepSlotsForUser({ u: userBob });
+    console.log(`Query: _getAllSleepSlotsForUser (${userBob}) -> Found ${bobSlots.length} slots.`);
+    const expectedBobDates = [date2, date3].map(normalizeDateString);
+    const foundBobDates = bobSlots.map(slot => slot.date); // bobSlots is SleepSlot[]
+
+    assertEquals(foundBobDates.length, expectedBobDates.length);
+    for (const expectedDate of expectedBobDates) {
+      assertEquals(foundBobDates.some(fd => fd.getTime() === expectedDate.getTime()), true, `Expected date ${expectedDate.toISOString()} not found for Bob.`);
+    }
+    console.log(`Verified all expected dates for ${userBob}`);
+
+    // Get all slots for Charlie (should have none)
+    const charlieSlots = await sleepSchedule._getAllSleepSlotsForUser({ u: userCharlie });
+    console.log(`Query: _getAllSleepSlotsForUser (${userCharlie}) -> Found ${charlieSlots.length} slots.`);
+    assertEquals(charlieSlots.length, 0);
+
+    await client.close();
+    console.log("--- Finished Test: _getAllSleepSlotsForUser Query ---");
+  }finally {
+    await client.close();
   }
-  console.log(`Verified all expected dates for ${userAlice}`);
-
-  // Get all slots for Bob (should have date2, date3)
-  const bobSlots = await sleepSchedule._getAllSleepSlotsForUser({ u: userBob });
-  console.log(`Query: _getAllSleepSlotsForUser (${userBob}) -> Found ${bobSlots.length} slots.`);
-  const expectedBobDates = [date2, date3].map(normalizeDateString);
-  const foundBobDates = bobSlots.map(slot => slot.date); // bobSlots is SleepSlot[]
-
-  assertEquals(foundBobDates.length, expectedBobDates.length);
-  for (const expectedDate of expectedBobDates) {
-    assertEquals(foundBobDates.some(fd => fd.getTime() === expectedDate.getTime()), true, `Expected date ${expectedDate.toISOString()} not found for Bob.`);
-  }
-  console.log(`Verified all expected dates for ${userBob}`);
-
-  // Get all slots for Charlie (should have none)
-  const charlieSlots = await sleepSchedule._getAllSleepSlotsForUser({ u: userCharlie });
-  console.log(`Query: _getAllSleepSlotsForUser (${userCharlie}) -> Found ${charlieSlots.length} slots.`);
-  assertEquals(charlieSlots.length, 0);
-
-  await client.close();
-  console.log("--- Finished Test: _getAllSleepSlotsForUser Query ---");
 });
 
 // import { assertEquals } from "jsr:@std/assert";

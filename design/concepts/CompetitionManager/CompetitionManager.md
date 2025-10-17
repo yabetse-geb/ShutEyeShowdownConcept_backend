@@ -38,47 +38,32 @@
 	        - participants must contain at least two distinct User's
 	        - `startDateStr` and `endDateStr` must be valid date strings parseable into `Date` objects.
             *   The parsed `startDate` must logically precede or be equal to the parsed `endDate`.
-        - **effects**: 
+        - **effects**:
 	        - Parses `startDateStr` and `endDateStr` into `Date` objects: `startDate`, `endDate`.
 	        - creates a Competition with participates, startDate, endDate, a true active flag, a null winner. Also, it creates a Score for each User in participants with wakeUpScore and bedTimeScore of zero and it is associated with the created competition.
 	        - returns the id of the Competition
     - `recordStat (u: User, dateStr: String, eventType:SleepEvent, success:Boolean)
-        - **requires**: 
+        - **requires**:
 	        - u is a part of at least one active Competition
 	        - `dateStr` is a valid date string parseable into a `Date`.
-            *   `eventType` is either `SleepEventType.BEDTIME` or `SleepEventType.WAKETIME`.
         - **effects**:
 	        -  Parses `dateStr` into a `Date` object: `eventDate`.
 	        - Calculates `scoreChange`: if `success` is `true`, `scoreChange = 1`; if `success` is `false`, `scoreChange = -1`.
-	        - for all the active competitions that u is apart of and where date is in the range of the start and end dates of the competition, and u is a member of 
+	        - for all the active competitions that u is apart of and where date is in the range of the start and end dates of the competition, and u is a member of
 		        - update the wakeUpScore+=scoreChange if event is "bedtime" otherwise update the bedTimeScore+=scoreChange
-		    
+
     - `endCompetition (c:Competition): Set<User>?
         - **requires**: current date is greater than or equal to the endDate of Competition c
-        - c.active must be true
+            - c.active must be true
         - **effects**: return the User IDs of the users in competition c with the greatest sum of wakeUpScore + bedTimeScore and set this ID to the winner state (if tie among all participants keep winner as null)
 	        - also change active flag to false for competition c
-	        *   `getLeaderboard (competitionId: CompetitionId): List<{position: Number, userId: UserId, totalScore: Number}>`
-        *   **purpose**: To provide a ranked list of participants and their current total scores for a given competition, ordered from highest to lowest score.
+
+    - getLeaderboard (c: Competition): List<{position: Number, userId: UserId, totalScore: Number}>`
         *   **requires**:
             *   `competitionId` must refer to an existing `Competition c` in `competitions`.
         *   **effects**:
             *   Retrieves the `Competition c` identified by `competitionId`.
-            *   Creates a temporary list `leaderboardEntries` of `{userId: UserId, totalScore: Number}`.
-            *   For each `userId` in `c.participants`:
-                *   Retrieves the `CompetitionScore cs` for `userId` and `c.id` from `competitionScores`. (Guaranteed to exist by `I4`).
-                *   Calculates `totalScore = cs.wakeUpScore + cs.bedTimeScore`.
-                *   Adds `{userId, totalScore}` to `leaderboardEntries`.
-            *   Sorts `leaderboardEntries` in descending order by `totalScore`.
-            *   Initializes `rankedLeaderboard: List<{position: Number, userId: UserId, totalScore: Number}>`.
-            *   Initializes `currentPosition = 1`, `lastScore = null`.
-            *   Iterates through sorted `leaderboardEntries` with their 0-based index:
-                *   Let `currentEntry = leaderboardEntries[index]`.
-                *   If `lastScore` is `null` or `currentEntry.totalScore < lastScore`:
-                    *   `currentPosition = index + 1`.
-                *   Adds `{position: currentPosition, userId: currentEntry.userId, totalScore: currentEntry.totalScore}` to `rankedLeaderboard`.
-                *   `lastScore = currentEntry.totalScore`.
-            *   Returns `rankedLeaderboard`.
+            *   returns a ranked leaderboard of users in `Competition c`
 
     *   `removeParticipant (competitionId: CompetitionId, userId: UserId)`
         *   **purpose**: To remove a specific user from an active competition and clear their associated scores. If the competition no longer has a viable number of participants, it is deactivated.
@@ -86,7 +71,7 @@
             *   `competitionId` must refer to an existing `Competition c` in `competitions`.
             *   `c.active` must be `true`.
             *   `userId` must be a member of `c.participants`.
-            *   `c.participants.size()` must be greater than 1 (to ensure the removal doesn't lead to an invalid state, *before* considering the 'less than 2' rule for deactivation). A competition with only one participant effectively doesn't exist.
+            *   `c.participants.size()`
         *   **effects**:
             *   Retrieves the `Competition c` identified by `competitionId`.
             *   Removes `userId` from `c.participants`.
@@ -94,6 +79,3 @@
             *   If `c.participants.size() < 2` (i.e., fewer than two participants remain after removal):
                 *   Sets `c.active` to `false`.
                 *   Sets `c.winners` to `null` (as the competition is no longer viable and cannot have meaningful winners).
-	    
-
-

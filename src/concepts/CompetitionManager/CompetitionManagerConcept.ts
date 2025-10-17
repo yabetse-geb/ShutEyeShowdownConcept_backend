@@ -310,18 +310,16 @@ export default class CompetitionManagerConcept {
    *       `currentPosition = index + 1`.
    *     - Adds `{position: currentPosition, userId: currentEntry.userId, totalScore: currentEntry.totalScore}` to `rankedLeaderboard`.
    *     - `lastScore = currentEntry.totalScore`.
-   *   - Returns `rankedLeaderboard`.
+   *   - Returns `rankedLeaderboard` stringified.
    */
   async _getLeaderboard(
     { competitionId }: { competitionId: CompetitionId },
-  ): Promise<
-    | { position: number; userId: User; totalScore: number }[]
-    | { error: string }
-  > {
+  ): Promise<string>
+  {
     const competition = await this.competitions.findOne({ _id: competitionId });
 
     if (!competition) {
-      return { error: `Competition with ID ${competitionId} not found.` };
+      return JSON.stringify({ error: `Competition with ID ${competitionId} not found.` });
     }
 
     const participantScores = await this.scores.find({
@@ -366,7 +364,7 @@ export default class CompetitionManagerConcept {
       lastScore = currentEntry.totalScore;
     }
 
-    return rankedLeaderboard;
+    return JSON.stringify(rankedLeaderboard);
   }
 
   /**

@@ -15,18 +15,18 @@
     *   `Time`: A standard time object, capable of representing a specific time of day (e.g., `java.time.LocalTime` in Java, `Date` in Swift/JS storing only time, or `HH:MM` string). Date components are ignored.
 - **state**:
     - A set of SleepSlots with
-        - a `bedTime` of type Time
-        - a `wakeUpTime` of type `Time`
+        - a `bedTime` of type Date
+        - a `wakeUpTime` of type `Date`
         - a `a user` of type `User`
         - a `date` of type `Date`
         - a wakeUpSucccess of type Boolean? (null initially)
         - a bedTimeSuccess of type Boolean? (null initially)
 - **actions**:
-    - `addSleepSlot (u: User, bedTimeStr:String , wakeTimeStr: String, dateStr:String): 
+    - `addSleepSlot (u: User, bedTimeStr:String , wakeTimeStr: String, dateStr:String):
         - **requires**: 
 	        -    `dateStr`, `bedTimeStr`, and `wakeTimeStr` must be valid strings parseable into `Date` and `Time` objects respectively.
             *   There doesn't already exist a `SleepSlot` for `u` on the parsed `date`.
-        - **effects**: 
+        - **effects**:
 	        -   Parses `dateStr` into a `Date` object: `date`.
             *   Parses `bedTimeStr` into a `Time` object: `bedTime`.
             *   Parses `wakeTimeStr` into a `Time` object: `wakeUpTime`.
@@ -55,7 +55,5 @@
             *   `reportedTimeStr` and `dateStr` must be valid strings parseable into `Time` and `Date` objects respectively.
             *   A `SleepSlot` with `user u` and the parsed `date` exists.
         *   **effects**:
-            *   Parses `reportedTimeStr` into a `Time` object: `reportedTime`.
-            *   Parses `dateStr` into a `Date` object: `date`.
-            *   Sets `wakeUpSuccess = reportedTime < wakeUpTime` for the `SleepSlot` with (`u`, `date`).
+            *   Sets `wakeUpSuccess = if the reported time passed in is within five minutes of wakeUpTime
             *   Returns `wakeUpSuccess`.

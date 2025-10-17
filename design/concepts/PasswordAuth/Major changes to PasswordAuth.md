@@ -1,0 +1,1 @@
+Now users can update their accounts by modifying their email and password (with new actions changePassword and changeEmail respectively). Users can also deactivate/delete their account via the deactivateAccount action. 

@@ -13,12 +13,26 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "design/concepts/Accountability/Accountability.md",
+                "file": "context/design/concepts/CompetitionManager/CompetitionManager.md/20251013_131752.448b0a66.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "Accountability"
+              "title": "20251013_131752.448b0a66"
+            }
+          },
+          {
+            "id": "77948af094b92efa",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "context/design/concepts/Accountability/Accountability.md/steps/response.f54facee.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "response.f54facee"
             }
           },
           {
@@ -27,12 +41,54 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "context/design/concepts/CompetitionManager/implementation.md/20251015_023622.d929343d.md",
+                "file": "README.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "20251015_023622.d929343d"
+              "title": "README"
+            }
+          },
+          {
+            "id": "758914f06e774e1b",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "design/brainstorming/Design file with Interesting moments.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "Design file with Interesting moments"
+            }
+          },
+          {
+            "id": "b60ece82aeef4e7e",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "context/design/concepts/CompetitionManager/CompetitionManager.md/steps/Concept.88fe3be4.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "Concept.88fe3be4"
+            }
+          },
+          {
+            "id": "fbbecc6be0c76e94",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "context/design/concepts/CompetitionManager/CompetitionManager.md/steps/Concept.f6a2910e.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "Concept.f6a2910e"
             }
           },
           {
@@ -48,8 +104,37 @@
               "icon": "lucide-file",
               "title": "response.e3a71dfb"
             }
+          },
+          {
+            "id": "d594940f64f814db",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "context/design/concepts/SleepSchedule/implementation.md/steps/implement.e4b78293.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "implement.e4b78293"
+            }
+          },
+          {
+            "id": "a73a2cc497afd923",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "context/design/concepts/SleepSchedule/implementation.md/steps/file.0e4d567d.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "file.0e4d567d"
+            }
           }
-        ]
+        ],
+        "currentTab": 2
       }
     ],
     "direction": "vertical"
@@ -197,45 +282,54 @@
       "bases:Create new base": false
     }
   },
-  "active": "d81523377319ce00",
+  "active": "9b42b4503c7d88ad",
   "lastOpenFiles": [
-    "design/brainstorming/Design file.md",
-    "design/concepts/CompetitionManager/CompetitionManager.md",
+    "2025-10-12.md",
+    "README.md",
+    "Untitled.canvas",
+    "Untitled.base",
+    "design/brainstorming/Design file with Interesting moments.md",
+    "design/learning/understanding-concepts.md",
+    "design/learning/recitation.md",
+    "design/learning/exercise-0.md",
     "design/concepts/SleepSchedule/SleepSchedule.md",
-    "design/concepts/SleepSchedule/testing.md",
-    "design/concepts/LikertSurvey/testing.md",
-    "context/design/concepts/Accountability/Accountability.md/steps/response.f54facee.md",
+    "design/concepts/PasswordAuth/Major changes to PasswordAuth.md",
+    "design/concepts/PasswordAuth/PasswordAuth.md",
+    "design/concepts/CompetitionManager/CompetitionManager.md",
+    "design/concepts/Accountability/Implementation.md",
+    "design/concepts/PasswordAuth",
+    "design/concepts/CompetitionManager/implementation.md",
+    "design/concepts/SleepSchedule/testing output.md",
+    "design/concepts/SleepSchedule/SleepScheduleTest3.png",
+    "design/concepts/SleepSchedule/SleepScheduleTest2.png",
+    "design/concepts/SleepSchedule/SleepScheduleTest1.png",
+    "design/concepts/CompetitionManager/testing outputs.md",
+    "design/background/testingDetailedConcepts.md",
+    "design/concepts/Accountability/testing outputs.md",
+    "design/concepts/CompetitionManager/CompetitionManagerTestLast.png",
+    "design/concepts/CompetitionManager/CompetitionManagerTest3.png",
+    "design/concepts/CompetitionManager/CompetitionManagerTest2.png",
+    "design/concepts/CompetitionManager/CompetitionManagerTest1.png",
+    "design/concepts/Accountability/AccountabilityTest3.png",
+    "design/concepts/Accountability/AccoutnabilityTest2.png",
+    "design/concepts/Accountability/AccountabilityTestLast.png",
+    "design/concepts/Accountability/Major changes to Accountability.md",
     "design/concepts/Accountability/Accountability.md",
+    "design/concepts/Accountability/Major changes to Accountability",
+    "design/concepts/CompetitionManager/Major changes to CompetitionManager.md",
+    "design/concepts/SleepSchedule/Changes to SleepSchedule.md",
+    "design/concepts/SleepSchedule/implementation.md",
+    "context/design/concepts/Accountability/Accountability.md/steps/response.f54facee.md",
     "context/design/concepts/Accountability/Accountability.md/steps/response.f1a0cb0a.md",
-    "context/design/concepts/Accountability/Accountability.md/20251015_153523.62772d3a.md",
-    "design/brainstorming/questioning.md",
-    "design/concepts/SleepSchedule/conceptRefining.md",
-    "design/concepts/LikertSurvey/LikertSurvey.md",
-    "context/design/concepts/Accountability/Accountability.md/20251015_153504.10d6fdf2.md",
-    "context/design/concepts/Accountability/Accountability.md/steps/Concept.abfc5b92.md",
-    "context/design/concepts/Accountability/Accountability.md/20251015_145716.ddd597b1.md",
-    "context/design/concepts/Accountability/Accountability.md/20251015_145605.c1675ef4.md",
-    "context/design/concepts/Accountability/Accountability.md/steps/Concept.a92b4191.md",
-    "context/design/concepts/Accountability/Accountability.md/steps/_.3731a859.md",
-    "context/design/concepts/Accountability/Accountability.md/steps/_.98d2324d.md",
-    "context/design/concepts/Accountability/Accountability.md/steps/_.7386b874.md",
-    "context/design/concepts/Accountability/Accountability.md/steps/question.fae6d8c0.md",
+    "context/design/concepts/SleepSchedule/implementation.md/steps/implement.924a1a85.md",
+    "context/design/concepts/Accountability/Accountability.md/steps/response.783e9afe.md",
+    "context/design/concepts/Accountability/Accountability.md/steps/response.807a2e9c.md",
+    "src/concepts/Accountability/AccountabilityConcept.ts",
+    "src/concepts/Accountability/Accountability.test.ts",
+    "src/concepts/Accountability",
+    "context/design/concepts/Accountability/testing.md/steps",
+    "context/design/concepts/Accountability/Implementation.md/steps",
     "context/design/concepts/Accountability/Accountability.md/steps",
-    "context/design/concepts/Accountability/Accountability.md",
-    "context/design/concepts/Accountability",
-    "design/concepts/CompetitionManager/testing.md",
-    "design/concepts/Accountability",
-    "context/design/concepts/CompetitionManager/testing.md/20251015_031305.6efe64e8.md",
-    "context/design/concepts/CompetitionManager/testing.md/steps/file.f227f05c.md",
-    "context/design/concepts/CompetitionManager/testing.md/steps/file.abcadd91.md",
-    "src/concepts/CompetitionManager/CompetitionManagerConcept.ts",
-    "src/concepts/CompetitionManager/CompetitionManager.test.ts",
-    "src/concepts/CompetitionManager",
-    "context/design/concepts/CompetitionManager/testing.md/steps",
-    "src/concepts/SleepSchedule/SleepSchedule.test.ts",
-    "src/concepts/SleepSchedule/SleepScheduleConcept.ts",
-    "src/concepts/SleepSchedule",
-    "media/linking.png",
-    "Untitled.canvas"
+    "context/design/concepts/Accountability"
   ]
 }

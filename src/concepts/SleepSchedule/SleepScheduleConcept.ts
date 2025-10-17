@@ -40,23 +40,51 @@ function parseDateString(dateStr: string): Date | null {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate());
 }
 
+
 /**
- * Helper to validate and normalize time string to "HH:MM" format.
+ * Parses a datetime string in "YYYY-MM-DDTHH:MM" format into a local Date object.
+ * Unlike `new Date(string)`, this version interprets the time as LOCAL (not UTC).
+ * Returns null if the input is invalid.
  */
-function parseTimeString(timeStr: string): string | null {
-  const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/; // HH:MM format
-  if (!timeRegex.test(timeStr)) {
-    return null; // Invalid time string format
+function parseDateTimeString(dateTimeStr: string): Date|null {
+  // Match "YYYY-MM-DDTHH:MM"
+  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(dateTimeStr);
+  if (!match) {
+    // throw new Error(`Invalid date-time format: ${dateTimeStr}`);
+    return null;
   }
-  return timeStr;
+
+  const [_, yearStr, monthStr, dayStr, hourStr, minuteStr] = match;
+  const year = Number(yearStr);
+  const month = Number(monthStr) - 1; // JS months are 0-based
+  const day = Number(dayStr);
+  const hour = Number(hourStr);
+  const minute = Number(minuteStr);
+
+  const date = new Date(year, month, day, hour, minute);
+
+  // Validate round-trip (detects invalid calendar dates)
+  if (
+    date.getFullYear() !== year ||
+    date.getMonth() !== month ||
+    date.getDate() !== day ||
+    date.getHours() !== hour ||
+    date.getMinutes() !== minute
+  ) {
+    // throw new Error(`Invalid date-time value: ${dateTimeStr}`);
+    return null;
+  }
+
+  return date;
 }
+
 
 
 /**
  * @state
  * A set of SleepSlots with
- *   a `bedTime` of type `Time`
- *   a `wakeUpTime` of type `Time`
+ *   a `bedTime` of type `Date`
+ *   a `wakeUpTime` of type `Date`
  *   a `user` of type `User`
  *   a `date` of type `Date`
  *   a `wakeUpSuccess` of type Boolean? (false initially as per spec, null implies not yet reported)
@@ -66,8 +94,8 @@ interface SleepSlot {
   _id: ID; // Unique ID for each SleepSlot
   u: User;
   date: Date; // Stored as Date object, normalized to start of day
-  bedTime: string; // Stored as "HH:MM" string
-  wakeUpTime: string; // Stored as "HH:MM" string
+  bedTime: Date; // full datetime to handle sleeping past midnight cases
+  wakeUpTime: Date; // full datetime to handle waking up past midnight cases (should be after bedTime)
   wakeUpSuccess: boolean | null;
   bedTimeSuccess: boolean | null;
 }
@@ -86,8 +114,8 @@ export default class SleepScheduleConcept {
    *   There doesn't already exist a `SleepSlot` for `u` on the parsed `date`.
    * @effects:
    *   Parses `dateStr` into a `Date` object: `date`.
-   *   Parses `bedTimeStr` into a `Time` object: `bedTime`.
-   *   Parses `wakeTimeStr` into a `Time` object: `wakeUpTime`.
+   *   Parses `bedTimeStr` into a `Date` object: `bedTime`. passed in like 2025-10-16T00:20
+   *   Parses `wakeTimeStr` into a `Date` object: `wakeUpTime`. passed in like "2025-10-16T07:30"
    *   Creates a new `SleepSlot` for `u` on `date` with `bedTime` and `wakeUpTime` targets.
    *   Initializes `wakeUpSuccess` and `bedTimeSuccess` to `false` for the new `SleepSlot`.
    */
@@ -100,18 +128,18 @@ export default class SleepScheduleConcept {
     },
   ): Promise<Empty | { error: string }> {
     const date = parseDateString(dateStr);
-    const bedTime = parseTimeString(bedTimeStr);
-    const wakeUpTime = parseTimeString(wakeTimeStr);
+    const bedTime = parseDateTimeString(bedTimeStr);
+    const wakeUpTime = parseDateTimeString(wakeTimeStr);
 
     // Requires: dateStr, bedTimeStr, and wakeTimeStr must be valid
     if (!date) {
       return { error: "Invalid date string provided." };
     }
     if (!bedTime) {
-      return { error: "Invalid bedtime string format. Expected HH:MM." };
+      return { error: "Invalid bedtime string format. Expected YYYY-MM-DDTHH:MM" };
     }
     if (!wakeUpTime) {
-      return { error: "Invalid wake-up time string format. Expected HH:MM." };
+      return { error: "Invalid wake-up time string format. Expected YYYY-MM-DDTHH:MM" };
     }
 
     // Requires: There doesn't already exist a SleepSlot for u on the parsed date.
@@ -187,14 +215,14 @@ export default class SleepScheduleConcept {
     },
   ): Promise<{ bedTimeSuccess: boolean } | { error: string }> {
     const date = parseDateString(dateStr);
-    const reportedTime = parseTimeString(reportedTimeStr);
+    const reportedTime = parseDateTimeString(reportedTimeStr);
 
     // Requires: reportedTimeStr and dateStr must be valid
     if (!date) {
       return { error: "Invalid date string provided." };
     }
     if (!reportedTime) {
-      return { error: "Invalid reported bedtime string format. Expected HH:MM." };
+      return { error: "Invalid reported bedtime string format. Expected YYYY-MM-DDTHH:MM" };
     }
 
     const sleepSlot = await this.sleepSlots.findOne({ u, date });
@@ -206,9 +234,9 @@ export default class SleepScheduleConcept {
       };
     }
 
-    // Effects: Sets bedTimeSuccess = reportedTime < bedTime
+    // Effects: Sets bedTimeSuccess = reportedTime <= bedTime
     // Lexicographical comparison for HH:MM strings works for chronological order.
-    const bedTimeSuccess = reportedTime < sleepSlot.bedTime;
+    const bedTimeSuccess = reportedTime <= sleepSlot.bedTime;
 
     await this.sleepSlots.updateOne(
       { _id: sleepSlot._id },
@@ -238,14 +266,14 @@ export default class SleepScheduleConcept {
     },
   ): Promise<{ wakeUpSuccess: boolean } | { error: string }> {
     const date = parseDateString(dateStr);
-    const reportedTime = parseTimeString(reportedTimeStr);
+    const reportedTime = parseDateTimeString(reportedTimeStr);
 
     // Requires: reportedTimeStr and dateStr must be valid
     if (!date) {
       return { error: "Invalid date string provided." };
     }
     if (!reportedTime) {
-      return { error: "Invalid reported wake-up time string format. Expected HH:MM." };
+      return { error: "Invalid reported wake-up time string format. Expected YYYY-MM-DDTHH:MM" };
     }
 
     const sleepSlot = await this.sleepSlots.findOne({ u, date });
@@ -259,7 +287,9 @@ export default class SleepScheduleConcept {
 
     // Effects: Sets wakeUpSuccess = reportedTime < wakeUpTime
     // Lexicographical comparison for HH:MM strings works for chronological order.
-    const wakeUpSuccess = reportedTime < sleepSlot.wakeUpTime;
+    const targetWakeTime= new Date(sleepSlot.wakeUpTime);
+    const differenceInMins= Math.abs(reportedTime.getTime() - targetWakeTime.getTime());
+    const wakeUpSuccess = differenceInMins <= 5 * 60 * 1000; // within 5 minutes
 
     await this.sleepSlots.updateOne(
       { _id: sleepSlot._id },
