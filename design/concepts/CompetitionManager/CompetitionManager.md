@@ -58,7 +58,7 @@
         - **effects**: return the User IDs of the users in competition c with the greatest sum of wakeUpScore + bedTimeScore and set this ID to the winner state (if tie among all participants keep winner as null)
 	        - also change active flag to false for competition c
 
-    - getLeaderboard (c: Competition): String`
+    - getLeaderboard (c: Competition): {position:number; userId: User; totalScore: number}[]`
         *   **requires**:
             *   `competitionId` must refer to an existing `Competition c` in `competitions`.
         *   **effects**:

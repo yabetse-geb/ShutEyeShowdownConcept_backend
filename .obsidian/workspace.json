@@ -55,12 +55,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "design/concepts/Accountability/Implementation.md",
+                "file": "design/concepts/CompetitionManager/CompetitionManager.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "Implementation"
+              "title": "CompetitionManager"
             }
           },
           {
@@ -298,10 +298,12 @@
   },
   "active": "a64dd6ea3ed0f428",
   "lastOpenFiles": [
-    "design/concepts/PasswordAuth/PasswordAuth.md",
-    "design/concepts/Accountability/Implementation.md",
-    "design/concepts/Accountability/Accountability.md",
+    "design/concepts/CompetitionManager/implementation.md",
+    "design/concepts/SleepSchedule/implementation.md",
     "design/concepts/api-generation.md",
+    "design/concepts/Accountability/Implementation.md",
+    "design/concepts/PasswordAuth/PasswordAuth.md",
+    "design/concepts/Accountability/Accountability.md",
     "context/design/concepts/api-generation.md/20251020_021216.cc8e1c6d.md",
     "context/design/concepts/api-generation.md/steps/API Specification.7a93cbd1.md",
     "context/design/concepts/api-generation.md/steps/API Specification.b53126be.md",
@@ -312,7 +314,6 @@
     "context/design/concepts/api-generation.md/steps/response.c9fe8ebf.md",
     "context/design/concepts/api-generation.md/steps/Concept.b98efb2e.md",
     "context/design/concepts/api-generation.md/steps/Concept.820c74bb.md",
-    "design/concepts/SleepSchedule/implementation.md",
     "context/design/concepts/api-generation.md/20251020_014501.b2fb4428.md",
     "context/design/concepts/api-generation.md/steps/API Specification.d5523a7d.md",
     "context/design/concepts/api-generation.md/steps/API Specification.615cf74c.md",
@@ -323,7 +324,6 @@
     "context/design/concepts/api-generation.md/20251020_014355.fa9ebe04.md",
     "context/design/concepts/api-generation.md/steps/response.e5f067b8.md",
     "context/design/concepts/api-generation.md/steps/implement.78fa329c.md",
-    "context/design/concepts/api-generation.md/steps/Concept.4e2fa3c0.md",
     "context/design/concepts/api-generation.md/steps",
     "media/relative_linking.png",
     "media/linking.png",

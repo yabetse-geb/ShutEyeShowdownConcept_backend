@@ -314,12 +314,15 @@ export default class CompetitionManagerConcept {
    */
   async _getLeaderboard(
     { competitionId }: { competitionId: CompetitionId },
-  ): Promise<string>
+  ): Promise<
+  | { position: number; userId: User; totalScore: number }[]
+  | { error: string }
+>
   {
     const competition = await this.competitions.findOne({ _id: competitionId });
 
     if (!competition) {
-      return JSON.stringify({ error: `Competition with ID ${competitionId} not found.` });
+      return { error: `Competition with ID ${competitionId} not found.` };
     }
 
     const participantScores = await this.scores.find({
@@ -364,7 +367,7 @@ export default class CompetitionManagerConcept {
       lastScore = currentEntry.totalScore;
     }
 
-    return JSON.stringify(rankedLeaderboard);
+    return rankedLeaderboard;
   }
 
   /**
