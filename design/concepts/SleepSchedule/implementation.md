@@ -11,8 +11,6 @@
 # response:
 
 ```typescript
-// file: src/SleepSchedule/SleepScheduleConcept.ts
-
 import { Collection, Db } from "npm:mongodb";
 
 import { ID, Empty } from "@utils/types.ts";

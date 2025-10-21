@@ -121,9 +121,13 @@ export default class AccountabilityConcept {
   async addPartner({
     user,
     partner,
+    notifyTypes = [], // Default: no specific failure types to notify
+    reportFrequency = FrequencyType.IMMEDIATE, // Default: immediate reporting
   }: {
     user: User;
     partner: User;
+    notifyTypes?: FailureType[];
+    reportFrequency?: FrequencyType;
   }): Promise<Empty | { error: string }> {
     // requires: user and partner are not equal
     if (user === partner) {
@@ -141,8 +145,8 @@ export default class AccountabilityConcept {
       _id: freshID(),
       user,
       partner,
-      notifyTypes: [], // Default: no specific failure types to notify
-      reportFrequency: FrequencyType.IMMEDIATE, // Default: immediate reporting
+      notifyTypes, // Default: no specific failure types to notify
+      reportFrequency, // Default: immediate reporting
       lastReportDate: null,
     };
 

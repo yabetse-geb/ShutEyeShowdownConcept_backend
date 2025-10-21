@@ -22,7 +22,7 @@
         - a wakeUpSucccess of type Boolean? (null initially)
         - a bedTimeSuccess of type Boolean? (null initially)
 - **actions**:
-    - `addSleepSlot (u: User, bedTimeStr:String , wakeTimeStr: String, dateStr:String):
+    - addSleepSlot (u: User, bedTimeStr:String , wakeTimeStr: String, dateStr:String):
         - **requires**: 
 	        -    `dateStr`, `bedTimeStr`, and `wakeTimeStr` must be valid strings parseable into `Date` and `Time` objects respectively.
             *   There doesn't already exist a `SleepSlot` for `u` on the parsed `date`.
@@ -33,7 +33,7 @@
             *   Creates a new `SleepSlot` for `u` on `date` with `bedTime` and `wakeUpTime` targets.
             *   Initializes `wakeUpSuccess` and `bedTimeSuccess` to `false` for the new `SleepSlot`.
 
-       *   `removeSleepSlot (u: User, dateStr: String)`:
+    - removeSleepSlot (u: User, dateStr: String)`:
         *   **requires**:
             *  `dateStr` must be a valid date string parseable into a `Date`.
             *   There exists a `SleepSlot` with `user u` and the parsed `date`.
