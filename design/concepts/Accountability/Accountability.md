@@ -72,3 +72,6 @@
 												- report all unreported failures from the past 7 days and mark them as reported in AdherenceFailures
 
 						If there are no new messages to send, return an empty string.
+
+	- `_getPartnerships(user: User, date: String): Partnership[]`
+		- effects: returns all partnerships where the user is either the primary user or the partner.

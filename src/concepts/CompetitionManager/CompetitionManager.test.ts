@@ -58,6 +58,7 @@ Deno.test("Operational Principle: Full competition lifecycle and leaderboard", a
     `Action: startCompetition(${JSON.stringify({ participants: competitionParticipants, startDateStr, endDateStr })})`,
   );
   const startResult = await concept.startCompetition({
+    name: "Test Competition",
     participants: competitionParticipants,
     startDateStr,
     endDateStr,
@@ -173,6 +174,7 @@ Deno.test("Scenario 1: Invalid Competition Start Conditions", async () => {
   // Test case: Less than two distinct participants
   console.log(`Action: startCompetition with 1 participant: [${userA}]`);
   const result1 = await concept.startCompetition({
+    name: "Single Participant Test",
     participants: [userA],
     startDateStr: "2023-02-01",
     endDateStr: "2023-02-05",
@@ -185,6 +187,7 @@ Deno.test("Scenario 1: Invalid Competition Start Conditions", async () => {
   // Test case: Non-distinct participants
   console.log(`Action: startCompetition with non-distinct participants: [${userA}, ${userA}]`);
   const resultDuplicateParticipants = await concept.startCompetition({
+    name: "Duplicate Participants Test",
     participants: [userA, userA],
     startDateStr: "2023-02-01",
     endDateStr: "2023-02-05",
@@ -196,6 +199,7 @@ Deno.test("Scenario 1: Invalid Competition Start Conditions", async () => {
   // Test case: Invalid date strings
   console.log(`Action: startCompetition with invalid startDateStr`);
   const result2 = await concept.startCompetition({
+    name: "Invalid Date Test",
     participants: [userA, userB],
     startDateStr: "not-a-date",
     endDateStr: "2023-02-05",
@@ -207,6 +211,7 @@ Deno.test("Scenario 1: Invalid Competition Start Conditions", async () => {
   // Test case: End date logically precedes start date
   console.log(`Action: startCompetition with endDate before startDate`);
   const result3 = await concept.startCompetition({
+    name: "End Before Start Test",
     participants: [userA, userB],
     startDateStr: "2023-02-05",
     endDateStr: "2023-02-01",
@@ -239,6 +244,7 @@ Deno.test("Scenario 2: Overlapping Competitions Allowed (for a user)", async () 
     `Action: startCompetition (Comp1) for ${JSON.stringify(participants1)} from ${startDate1} to ${endDate1}`,
   );
   const res1 = await concept.startCompetition({
+    name: "Overlapping Competition 1",
     participants: participants1,
     startDateStr: startDate1,
     endDateStr: endDate1,
@@ -259,6 +265,7 @@ Deno.test("Scenario 2: Overlapping Competitions Allowed (for a user)", async () 
     `Action: startCompetition (Comp2) for ${JSON.stringify(participants2)} from ${startDate2} to ${endDate2}`,
   );
   const res2 = await concept.startCompetition({
+    name: "Overlapping Competition 2",
     participants: participants2,
     startDateStr: startDate2,
     endDateStr: endDate2,
@@ -318,6 +325,7 @@ Deno.test("Scenario 3: Score Update Validation", async () => {
   const participants = [userX, userY];
 
   const startRes = await concept.startCompetition({
+    name: "Score Update Validation Test",
     participants,
     startDateStr: startDate,
     endDateStr: endDate,
@@ -420,6 +428,7 @@ Deno.test("Scenario 4: End Competition - Tie Scenarios", async () => {
   const participantsA = [userP, userQ];
 
   const startResA = await concept.startCompetition({
+    name: "Tie Test Competition A",
     participants: participantsA,
     startDateStr: startDateA,
     endDateStr: endDateA,
@@ -454,6 +463,7 @@ Deno.test("Scenario 4: End Competition - Tie Scenarios", async () => {
   const participantsB = [userP, userQ, userR];
 
   const startResB = await concept.startCompetition({
+    name: "Tie Test Competition B",
     participants: participantsB,
     startDateStr: startDateB,
     endDateStr: endDateB,
@@ -511,6 +521,7 @@ Deno.test("Scenario 5: Participant Management & Competition Deactivation", async
   // --- Part 1: Remove from 3-person competition, stays active, then deactivates ---
   // Start a competition with 3 participants
   const startRes1 = await concept.startCompetition({
+    name: "Participant Management Test 1",
     participants: [userR, userS, userT],
     startDateStr: "2023-08-01",
     endDateStr: "2023-08-07",
@@ -580,6 +591,7 @@ Deno.test("Scenario 5: Participant Management & Competition Deactivation", async
   // --- Part 3: Remove from 2-person competition, immediate deactivation ---
   // Start a fresh competition with exactly 2 participants
   const startRes2 = await concept.startCompetition({
+    name: "Participant Management Test 2",
     participants: [userU, userR], // userV from previous test still active, but unique competitionId means isolation
     startDateStr: "2023-09-01",
     endDateStr: "2023-09-05",
@@ -626,7 +638,7 @@ Deno.test("Scenario 6: End Competition Before End Date", async () => {
   const futureEndDateStr = futureEndDate.toISOString().split("T")[0];
 
   const startDate = "2024-01-01"; // A date in the past for the start, relevant only for active competitions
-  const compResult = await concept.startCompetition({ participants: [userA, userB], startDateStr: startDate, endDateStr: futureEndDateStr });
+  const compResult = await concept.startCompetition({ name: "Future End Date Test", participants: [userA, userB], startDateStr: startDate, endDateStr: futureEndDateStr });
   assertEquals("competitionId" in compResult, true, "Expected successful competition start.");
   const competitionId = (compResult as { competitionId: ID }).competitionId;
   console.log(`Competition started with future end date: ${futureEndDateStr}. ID: ${competitionId}`);

@@ -1,9 +1,11 @@
+# API Specification: Accountability Concept
+
 
 [@api-extraction-from-code](../tools/api-extraction-from-code.md)
 
 [@api-extraction-from-spec](../tools/api-extraction-from-spec.md)
 
-Please extract an API for this app from the following four concepts:
+Please add an API spec for the `_getPartnerships` query I added to Accountability
 
 ## Accountability
 
@@ -15,43 +17,8 @@ Code:
 
 [@Implementation](Accountability/Implementation.md)
 
-## CompetitionManager
-
-Specification:
-
-[@CompetitionManager](CompetitionManager/CompetitionManager.md)
-
-Code:
-
-[@implementation](CompetitionManager/implementation.md)
 
 
-## SleepSchedule
-
-Specification:
-
-[@SleepSchedule](SleepSchedule/SleepSchedule.md)
-
-Code:
-
-[@implementation](SleepSchedule/implementation.md)
-
-
-## PasswordAuth
-
-Specification:
-
-[@PasswordAuth](PasswordAuth/PasswordAuth.md)
-
-Code:
-
-[@implementation](PasswordAuth/implementation.md)
-
-# response:
-
-Here is the API documentation extracted from the provided concept specifications.
-
-# API Specification: Accountability Concept
 
 **Purpose:** Enable structured accountability between users by recording their partnerships, adherence tracking preferences, and report frequencies. The concept maintains only the data required to support external systems in generating notifications or summaries—it does not send or deliver messages itself. By storing which types of adherence failures are monitored and when reports should be produced, the concept ensures that each partnership’s accountability data remains accurate, consistent, and ready for use by reporting or notification services.
 
@@ -92,6 +59,7 @@ Here is the API documentation extracted from the provided concept specifications
 }
 ```
 ---
+
 ### POST /api/Accountability/removePartner
 
 **Description:** Removes an existing accountability partnership.
@@ -122,6 +90,7 @@ Here is the API documentation extracted from the provided concept specifications
 }
 ```
 ---
+
 ### POST /api/Accountability/updatePreferences
 
 **Description:** Updates the notification settings for an existing partnership.
@@ -154,6 +123,7 @@ Here is the API documentation extracted from the provided concept specifications
 }
 ```
 ---
+
 ### POST /api/Accountability/recordFailure
 
 **Description:** Records a specific instance of an adherence failure for a user on a given date.
@@ -186,6 +156,7 @@ Here is the API documentation extracted from the provided concept specifications
 }
 ```
 ---
+
 ### POST /api/Accountability/reportAllFailuresFromStartToEnd
 
 **Description:** Generates a summary string of all unreported adherence failures for a user within a specified date range.
@@ -221,6 +192,7 @@ Here is the API documentation extracted from the provided concept specifications
 }
 ```
 ---
+
 ### POST /api/Accountability/generateNotificationMessage
 
 **Description:** Generates notification messages for a user's partners based on their reporting preferences and marks the included failures as reported.
@@ -258,9 +230,48 @@ Here is the API documentation extracted from the provided concept specifications
 }
 ```
 ---
+
+### POST /api/Accountability/_getPartnerships
+
+**Description:** Retrieves all partnerships associated with a user, where they are either the primary user or the partner.
+
+**Requirements:**
+- (None)
+
+**Effects:**
+- Returns an array of all `Partnership` objects where the specified user is either the `user` or the `partner`.
+
+**Request Body:**
+```json
+{
+  "user": "string"
+}
+```
+
+**Success Response Body (Query):**
+```json
+[
+  {
+    "_id": "string",
+    "user": "string",
+    "partner": "string",
+    "notifyTypes": ["string"],
+    "reportFrequency": "string",
+    "lastReportDate": "string"
+  }
+]
+```
+
+**Error Response Body:**
+```json
+{
+  "error": "string"
+}
+```
+---
 # API Specification: CompetitionManager Concept
 
-**Purpose:** Manage multiple sleep-adherence competitions between users, each tracking daily bedtime and wake-up performance over a defined time period and establishing a winner based off of scores.
+**Purpose:** manage multiple named sleep-adherence competitions between users, each tracking daily bedtime and wake-up performance over a defined time period and establishing a winner based off of scores.
 
 ---
 
@@ -268,21 +279,23 @@ Here is the API documentation extracted from the provided concept specifications
 
 ### POST /api/CompetitionManager/startCompetition
 
-**Description:** Creates a new competition for a set of users with a defined start and end date.
+**Description:** Creates a new named competition for a set of users with a defined start and end date.
 
 **Requirements:**
+- `name` must be a non-empty string.
 - `participants` must contain at least two distinct user IDs.
 - `startDateStr` and `endDateStr` must be valid date strings.
 - The start date must be on or before the end date.
 
 **Effects:**
-- A new `Competition` is created with the given participants and dates, marked as active.
+- A new `Competition` is created with the given name, participants, and dates, marked as active.
 - A `Score` record is created for each participant, initialized to zero.
 - Returns the ID of the newly created competition.
 
 **Request Body:**
 ```json
 {
+  "name": "string",
   "participants": ["string"],
   "startDateStr": "string",
   "endDateStr": "string"
@@ -303,13 +316,14 @@ Here is the API documentation extracted from the provided concept specifications
 }
 ```
 ---
+
 ### POST /api/CompetitionManager/recordStat
 
 **Description:** Records a sleep adherence event (success or failure) for a user, updating their score in all relevant active competitions.
 
 **Requirements:**
 - The user `u` must be a participant in at least one active competition.
-- The `dateStr` must be a valid date string.
+- The `dateStr` must be a valid date string that falls within the active competition's date range.
 
 **Effects:**
 - The user's score is updated (+1 for success, -1 for failure) in every active competition they are part of where the event date falls within the competition's date range.
@@ -337,6 +351,7 @@ Here is the API documentation extracted from the provided concept specifications
 }
 ```
 ---
+
 ### POST /api/CompetitionManager/endCompetition
 
 **Description:** Ends an active competition, determines the winner(s), and marks the competition as inactive.
@@ -372,7 +387,8 @@ Here is the API documentation extracted from the provided concept specifications
 }
 ```
 ---
-### POST /api/CompetitionManager/getLeaderboard
+
+### POST /api/CompetitionManager/\_getLeaderboard
 
 **Description:** Retrieves a ranked leaderboard for a specific competition.
 
@@ -380,6 +396,8 @@ Here is the API documentation extracted from the provided concept specifications
 - `competitionId` must refer to an existing competition.
 
 **Effects:**
+- Retrieves all score entries for the competition.
+- Calculates the total score for each user.
 - Returns a ranked list of all participants in the competition, including their position, user ID, and total score.
 
 **Request Body:**
@@ -389,11 +407,15 @@ Here is the API documentation extracted from the provided concept specifications
 }
 ```
 
-**Success Response Body (Action):**
+**Success Response Body (Query):**
 ```json
-{
-  "leaderboard": "string"
-}
+[
+  {
+    "position": "number",
+    "userId": "string",
+    "totalScore": "number"
+  }
+]
 ```
 
 **Error Response Body:**
@@ -403,6 +425,7 @@ Here is the API documentation extracted from the provided concept specifications
 }
 ```
 ---
+
 ### POST /api/CompetitionManager/removeParticipant
 
 **Description:** Removes a user from an active competition and deletes their score.
@@ -436,6 +459,47 @@ Here is the API documentation extracted from the provided concept specifications
 }
 ```
 ---
+---
+### POST /api/CompetitionManager/_getCompetitionsForUser
+
+**Description:** Retrieves all competitions that a specific user is a participant in.
+
+**Requirements:**
+- A user with the given ID `u` must exist.
+
+**Effects:**
+- Returns a list of all `Competition` objects where the user is listed as a participant.
+
+**Request Body:**
+```json
+{
+  "u": "string"
+}
+```
+
+**Success Response Body (Query):**
+```json
+[
+  {
+    "_id": "string",
+    "name": "string",
+    "participants": ["string"],
+    "startDate": "string",
+    "endDate": "string",
+    "active": "boolean",
+    "winners": ["string"]
+  }
+]
+```
+
+**Error Response Body:**
+```json
+{
+  "error": "string"
+}
+```
+
+
 # API Specification: SleepSchedule Concept
 
 **Purpose:** Let users set bedtime/wake goals, log sleep and wake events, and record daily adherence (did the user follow their targets).
@@ -478,6 +542,7 @@ Here is the API documentation extracted from the provided concept specifications
 }
 ```
 ---
+
 ### POST /api/SleepSchedule/removeSleepSlot
 
 **Description:** Removes a user's sleep schedule for a specific date.
@@ -509,6 +574,7 @@ Here is the API documentation extracted from the provided concept specifications
 }
 ```
 ---
+
 ### POST /api/SleepSchedule/reportBedTime
 
 **Description:** Records the actual time a user went to bed and determines if they met their goal.
@@ -544,6 +610,7 @@ Here is the API documentation extracted from the provided concept specifications
 }
 ```
 ---
+
 ### POST /api/SleepSchedule/reportWakeUpTime
 
 **Description:** Records the actual time a user woke up and determines if they met their goal.
@@ -579,7 +646,8 @@ Here is the API documentation extracted from the provided concept specifications
 }
 ```
 ---
-### POST /api/SleepSchedule/_getSleepSlot
+
+### POST /api/SleepSchedule/\_getSleepSlot
 
 **Description:** Retrieves the sleep schedule for a user on a specific date.
 
@@ -619,7 +687,8 @@ Here is the API documentation extracted from the provided concept specifications
 }
 ```
 ---
-### POST /api/SleepSchedule/_getAllSleepSlotsForUser
+
+### POST /api/SleepSchedule/\_getAllSleepSlotsForUser
 
 **Description:** Retrieves all sleep schedules for a given user.
 
@@ -700,6 +769,7 @@ Here is the API documentation extracted from the provided concept specifications
 }
 ```
 ---
+
 ### POST /api/PasswordAuth/authenticate
 
 **Description:** Authenticates a user with their username and password.
@@ -732,6 +802,7 @@ Here is the API documentation extracted from the provided concept specifications
 }
 ```
 ---
+
 ### POST /api/PasswordAuth/changePassword
 
 **Description:** Changes a user's password after verifying their current password.
@@ -763,6 +834,7 @@ Here is the API documentation extracted from the provided concept specifications
 }
 ```
 ---
+
 ### POST /api/PasswordAuth/changeEmail
 
 **Description:** Changes the email address associated with a user's account.
@@ -794,7 +866,8 @@ Here is the API documentation extracted from the provided concept specifications
 }
 ```
 ---
-### POST /api/PasswordAuth/_getEmail
+
+### POST /api/PasswordAuth/\_getEmail
 
 **Description:** Retrieves the email address for a given username.
 
@@ -827,7 +900,8 @@ Here is the API documentation extracted from the provided concept specifications
 }
 ```
 ---
-### POST /api/PasswordAuth/_isRegistered
+
+### POST /api/PasswordAuth/\_isRegistered
 
 **Description:** Checks if a username is already registered.
 
@@ -860,6 +934,7 @@ Here is the API documentation extracted from the provided concept specifications
 }
 ```
 ---
+
 ### POST /api/PasswordAuth/deactivateAccount
 
 **Description:** Deletes a user's account and all associated credentials.
@@ -888,5 +963,3 @@ Here is the API documentation extracted from the provided concept specifications
 {
   "error": "string"
 }
-```
----

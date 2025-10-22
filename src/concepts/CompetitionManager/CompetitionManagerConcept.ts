@@ -30,6 +30,7 @@ enum SleepEventType {
  */
 interface Competition {
   _id: CompetitionId;
+  name: string;
   participants: User[];
   startDate: Date; // Stored as ISODate in MongoDB, time components normalized to 00:00:00.000Z
   endDate: Date; // Stored as ISODate in MongoDB, time components normalized to 00:00:00.000Z
@@ -79,13 +80,17 @@ export default class CompetitionManagerConcept {
    *   - returns the id of the Competition
    */
   async startCompetition(
-    { participants, startDateStr, endDateStr }: {
+    { name, participants, startDateStr, endDateStr }: {
+      name:string;
       participants: User[];
       startDateStr: string;
       endDateStr: string;
     },
   ): Promise<{ competitionId: CompetitionId } | { error: string }> {
     // 1. Validate inputs
+    if (!name || name.trim() === "") {
+      return { error: "Competition name must be a non-empty string." };
+    }
     if (!participants || participants.length < 2) {
       return { error: "Competition must have at least two participants." };
     }
@@ -117,6 +122,7 @@ export default class CompetitionManagerConcept {
     const competitionId = freshID() as CompetitionId;
     const newCompetition: Competition = {
       _id: competitionId,
+      name: name.trim(),
       participants,
       startDate,
       endDate,
@@ -400,14 +406,6 @@ export default class CompetitionManagerConcept {
     if (!competition.participants.includes(userId)) {
       return { error: `User ${userId} is not a participant in competition ${competitionId}.` };
     }
-    // Requirement: `c.participants.size()` must be greater than 1 *before* removal.
-    // If there's only 1 participant, removal would make the competition invalid/empty.
-    if (competition.participants.length <= 1) {
-      return {
-        error:
-          `Cannot remove participant from competition ${competitionId}: it must have more than 1 participant.`,
-      };
-    }
 
     // Remove user from participants list
     const updatedParticipants = competition.participants.filter((p) =>
@@ -437,5 +435,16 @@ export default class CompetitionManagerConcept {
     }
 
     return {};
+  }
+
+  async _getCompetitionsForUser(
+    { u }: { u: User },
+  ): Promise<Competition[] | { error: string }> {
+    try {
+      const competitions = await this.competitions.find({ participants: u, active: true }).toArray();
+      return competitions;
+    } catch (e) {
+      return { error: "An unexpected error occurred while fetching competitions." };
+    }
   }
 }

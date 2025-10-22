@@ -593,11 +593,14 @@
     }
   },
   "redirects": {
+    "https://esm.sh/hono/cors": "https://esm.sh/hono@4.10.1/cors",
     "https://esm.sh/unist-util-is@^6.0.0?target=denonext": "https://esm.sh/unist-util-is@6.0.0?target=denonext",
     "https://esm.sh/unist-util-visit-parents@^6.0.0?target=denonext": "https://esm.sh/unist-util-visit-parents@6.0.1?target=denonext",
     "https://esm.sh/unist-util-visit@5": "https://esm.sh/unist-util-visit@5.0.0"
   },
   "remote": {
+    "https://esm.sh/hono@4.10.1/cors": "1d195a71af5581dbb5471e960f17bfbbb5d5af05c3dfc8ab074d7a68db101aa5",
+    "https://esm.sh/hono@4.10.1/denonext/cors.mjs": "fb2271e9697c75f79050619c07e9be5344a5aff1667e072ca3a05a9680655966",
     "https://esm.sh/unist-util-is@6.0.0/denonext/unist-util-is.mjs": "bbc00c612fd8daa022e50a0061856c52be17e0caa699dffa1e7b83b3bbe7b9f2",
     "https://esm.sh/unist-util-is@6.0.0?target=denonext": "7ac7092e893f27ed8edacb142d04dcc37169fdcfaa2ae8833a51fb9762d5e41f",
     "https://esm.sh/unist-util-visit-parents@6.0.1/denonext/do-not-use-color.mjs": "94b57609e52050f8d615ab3d096a2efb7183053a494dee89f9af2fe6c8fb9f0b",
@@ -605,5 +608,10 @@
     "https://esm.sh/unist-util-visit-parents@6.0.1?target=denonext": "d34dfd64dfda160231fe9a0dbf994475b1d5194b2874d9c3309593e942f85ae8",
     "https://esm.sh/unist-util-visit@5.0.0": "c877716ff21eeb6c104d3fc273bd29962611c2b6eed815be90aa1dbffc448b06",
     "https://esm.sh/unist-util-visit@5.0.0/denonext/unist-util-visit.mjs": "a09fab16c3eafd466e5b5dab65ab76cb8f1eafa360b457eef35a529f59725d7f"
+  },
+  "workspace": {
+    "dependencies": [
+      "jsr:@hono/cors@*"
+    ]
   }
 }

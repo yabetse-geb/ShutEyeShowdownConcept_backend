@@ -537,4 +537,19 @@ export default class AccountabilityConcept {
 
     return { message: allMessages.join("\n\n---\n\n") };
   }
+
+  /**
+   * _getPartnerships(user: User): (partnerships: Partnership[])
+   *
+   * requires: user exists
+   * effects: returns all partnerships where the user is either the primary user or the partner.
+   */
+  async _getPartnerships({ user }: { user: User }): Promise<Partnership[]> {
+    const partnerships = await this.partnerships
+      .find({
+        $or: [{ user: user }, { partner: user }],
+      })
+      .toArray();
+    return partnerships;
+  }
 }
