@@ -44,6 +44,8 @@ interface Competition {
  *   competition: a CompetitionId
  *   a wakeUpScore Number
  *   a bedTimeScore Number
+ *   a reportedBedtimeDates string[] (array of date strings in YYYY-MM-DD format)
+ *   a reportedWakeUpDates string[] (array of date strings in YYYY-MM-DD format)
  */
 interface Score {
   _id: ID; // Unique ID for each score document (not necessarily competitionId + userId)
@@ -51,6 +53,21 @@ interface Score {
   competition: CompetitionId;
   wakeUpScore: number;
   bedTimeScore: number;
+  reportedBedtimeDates: string[]; // Array of date strings in YYYY-MM-DD format
+  reportedWakeUpDates: string[]; // Array of date strings in YYYY-MM-DD format
+}
+
+/**
+ * Helper to parse date string to Date object, normalized to the start of the day (local time).
+ * This ensures that comparisons are purely based on the calendar day, ignoring time components.
+ */
+function parseDateString(dateStr: string): Date | null {
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) {
+    return null; // Invalid date string
+  }
+  // Normalize to the start of the day in local time (e.g., YYYY-MM-DDT00:00:00.000)
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
 }
 
 /**
@@ -71,11 +88,11 @@ export default class CompetitionManagerConcept {
    * @action startCompetition
    * @requires:
    *   - participants must contain at least two distinct User's
-   *   - `startDateStr` and `endDateStr` must be valid date strings parseable into `Date` objects.
+   *   - `startDateStr` and `endDateStr` must be valid date strings in YYYY-MM-DD format, parseable into `Date` objects
    *   - The parsed `startDate` must logically precede or be equal to the parsed `endDate`.
    * @effects:
-   *   - Parses `startDateStr` and `endDateStr` into `Date` objects: `startDate`, `endDate`.
-   *   - creates a Competition with participates, startDate, endDate, a true active flag, a null winner.
+   *   - Parses `startDateStr` and `endDateStr` into `Date` objects normalized to start of day: `startDate`, `endDate`.
+   *   - creates a Competition with participants, startDate, endDate, a true active flag, a null winner.
    *   - Also, it creates a Score for each User in participants with wakeUpScore and bedTimeScore of zero and it is associated with the created competition.
    *   - returns the id of the Competition
    */
@@ -98,21 +115,12 @@ export default class CompetitionManagerConcept {
       return { error: "Participants must be distinct." };
     }
 
-    let startDate: Date;
-    let endDate: Date;
-    try {
-      startDate = new Date(startDateStr);
-      endDate = new Date(endDateStr);
-      if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
-        return { error: "Invalid date strings provided." };
-      }
-    } catch (_e) {
+    const startDate = parseDateString(startDateStr);
+    const endDate = parseDateString(endDateStr);
+
+    if (!startDate || !endDate) {
       return { error: "Invalid date strings provided." };
     }
-
-    // Normalize dates to start of day for comparison, as time components are ignored.
-    startDate.setUTCHours(0, 0, 0, 0);
-    endDate.setUTCHours(0, 0, 0, 0);
 
     if (startDate > endDate) {
       return { error: "Start date cannot be after end date." };
@@ -139,6 +147,8 @@ export default class CompetitionManagerConcept {
       competition: competitionId,
       wakeUpScore: 0,
       bedTimeScore: 0,
+      reportedBedtimeDates: [], // Initialize empty array for bedtime dates
+      reportedWakeUpDates: [], // Initialize empty array for wake-up dates
     }));
 
     await this.scores.insertMany(scoreDocuments);
@@ -150,13 +160,15 @@ export default class CompetitionManagerConcept {
    * @action recordStat
    * @requires:
    *   - u is a part of at least one active Competition
-   *   - `dateStr` is a valid date string parseable into a `Date`.
+   *   - `dateStr` is a valid date string in YYYY-MM-DD format, parseable into a `Date`.
    *   - `eventType` is either `SleepEventType.BEDTIME` or `SleepEventType.WAKETIME`.
    * @effects:
-   *   - Parses `dateStr` into a `Date` object: `eventDate`.
-   *   - Calculates `scoreChange`: if `success` is `true`, `scoreChange = 1`; if `success` is `false`, `scoreChange = -1`.
-   *   - for all the active competitions that u is apart of and where date is in the range of the start and end dates of the competition, and u is a member of
-   *     update the wakeUpScore+=scoreChange if event is "bedtime" otherwise update the bedTimeScore+=scoreChange
+   *   - Parses `dateStr` into a `Date` object normalized to start of day: `eventDate`.
+   *   - For all active competitions that u is part of where the eventDate is within the competition's date range:
+   *     - If `success` is true: increments the appropriate score (wakeUpScore for WAKETIME, bedTimeScore for BEDTIME)
+   *     - If `success` is false: no change to score
+   *     - Adds the date (as string in YYYY-MM-DD format) to reportedBedtimeDates array if event is BEDTIME and date string is not already in the array
+   *     - Adds the date (as string in YYYY-MM-DD format) to reportedWakeUpDates array if event is WAKETIME and date string is not already in the array
    */
   async recordStat(
     { u, dateStr, eventType, success }: {
@@ -167,16 +179,11 @@ export default class CompetitionManagerConcept {
     },
   ): Promise<Empty | { error: string }> {
     // 1. Validate inputs
-    let eventDate: Date;
-    try {
-      eventDate = new Date(dateStr);
-      if (isNaN(eventDate.getTime())) {
-        return { error: "Invalid date string provided for event." };
-      }
-    } catch (_e) {
+    const eventDate = parseDateString(dateStr);
+
+    if (!eventDate) {
       return { error: "Invalid date string provided for event." };
     }
-    eventDate.setUTCHours(0, 0, 0, 0); // Normalize to date only
 
     if (
       eventType !== SleepEventType.BEDTIME && eventType !== SleepEventType.WAKETIME
@@ -199,18 +206,58 @@ export default class CompetitionManagerConcept {
       };
     }
 
-    // 2. Calculate score change
-    const scoreChange = success ? 1 : -1;
-
-    // 3. Update scores for matching competitions
-    const updatePromises = activeCompetitions.map((comp) => {
+    // 2. Update scores and add dates to the appropriate arrays for matching competitions
+    // For each competition, get the score document, check if dateStr is in the array, and update accordingly
+    const updatePromises = activeCompetitions.map(async (comp) => {
       const scoreFieldName = eventType === SleepEventType.BEDTIME
         ? "bedTimeScore"
         : "wakeUpScore";
-      return this.scores.updateOne(
-        { u, competition: comp._id },
-        { $inc: { [scoreFieldName]: scoreChange } },
-      );
+      const dateArrayFieldName = eventType === SleepEventType.BEDTIME
+        ? "reportedBedtimeDates"
+        : "reportedWakeUpDates";
+
+      // Get the current score document
+      const scoreDoc = await this.scores.findOne({ u, competition: comp._id });
+      if (!scoreDoc) {
+        return; // Skip if score document doesn't exist
+      }
+
+      // Determine if we need to add the date and/or update the score
+      // Convert eventDate to YYYY-MM-DD string format for storage
+      const dateString = `${eventDate.getFullYear()}-${String(eventDate.getMonth() + 1).padStart(2, '0')}-${String(eventDate.getDate()).padStart(2, '0')}`;
+
+      // Check if the date string already exists in the array
+      const dateArrayToCheck = eventType === SleepEventType.BEDTIME
+        ? scoreDoc.reportedBedtimeDates
+        : scoreDoc.reportedWakeUpDates;
+
+      const dateExists = dateArrayToCheck.includes(dateString);
+
+      // Only add date if it's not already in the array
+      const needsDateUpdate = !dateExists;
+
+      // Only update score if it's a success
+      const needsScoreUpdate = success;
+
+      // Update the score document only if something needs to change
+      if (needsDateUpdate || needsScoreUpdate) {
+        const updateOperations: any = {};
+
+        // Increment score if success
+        if (needsScoreUpdate) {
+          updateOperations.$inc = { [scoreFieldName]: 1 };
+        }
+
+        // Add date string to array if not already present
+        if (needsDateUpdate) {
+          updateOperations.$push = { [dateArrayFieldName]: dateString };
+        }
+
+        await this.scores.updateOne(
+          { u, competition: comp._id },
+          updateOperations,
+        );
+      }
     });
 
     await Promise.all(updatePromises);
@@ -224,8 +271,13 @@ export default class CompetitionManagerConcept {
    *   - current date is greater than or equal to the endDate of Competition c
    *   - c.active must be true
    * @effects:
-   *   - return the User IDs of the users in competition c with the greatest sum of wakeUpScore + bedTimeScore and set this ID to the winner state (if tie among all participants keep winner as null)
-   *   - also change active flag to false for competition c
+   *   - Calculates the total number of days in the competition (endDate - startDate + 1)
+   *   - For each participant's Score, applies penalties based on missing reports:
+   *     - Decrements bedTimeScore by (totalDays - length of reportedBedtimeDates)
+   *     - Decrements wakeUpScore by (totalDays - length of reportedWakeUpDates)
+   *   - Returns the User IDs of the users in competition c with the greatest adjusted sum of wakeUpScore + bedTimeScore
+   *   - Sets winners to the IDs of users with highest scores, or null if all participants tie
+   *   - Changes active flag to false for competition c
    */
   async endCompetition(
     { competitionId }: { competitionId: CompetitionId },
@@ -240,7 +292,7 @@ export default class CompetitionManagerConcept {
     }
 
     const currentDate = new Date();
-    currentDate.setUTCHours(0, 0, 0, 0); // Normalize to date only
+    currentDate.setHours(0, 0, 0, 0); // Normalize to date only in local timezone
 
     if (currentDate < competition.endDate) {
       return { error: `Competition ${competitionId} has not ended yet.` };
@@ -261,10 +313,57 @@ export default class CompetitionManagerConcept {
       return { winners: null };
     }
 
+    // Calculate total number of days in the competition (inclusive of start and end dates)
+    const startDate = new Date(competition.startDate);
+    const endDate = new Date(competition.endDate);
+    const totalDays = Math.floor((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+
+    // Apply penalties for missing reports BEFORE tallying scores
+    for (const score of participantScores) {
+      // Calculate missing reports for bedtime and wake-up
+      const missingBedtimeReports = totalDays - score.reportedBedtimeDates.length;
+      const missingWakeUpReports = totalDays - score.reportedWakeUpDates.length;
+
+      // Apply penalties by decrementing scores for missing reports
+      if (missingBedtimeReports > 0) {
+        score.bedTimeScore -= missingBedtimeReports;
+      }
+      if (missingWakeUpReports > 0) {
+        score.wakeUpScore -= missingWakeUpReports;
+      }
+    }
+
+    // Persist the penalized scores to the database
+    const updatePromises = participantScores.map((score) => {
+      const missingBedtimeReports = totalDays - score.reportedBedtimeDates.length;
+      const missingWakeUpReports = totalDays - score.reportedWakeUpDates.length;
+
+      const updateOperations: any = {};
+      if (missingBedtimeReports > 0) {
+        updateOperations.bedTimeScore = -missingBedtimeReports;
+      }
+      if (missingWakeUpReports > 0) {
+        updateOperations.wakeUpScore = -missingWakeUpReports;
+      }
+
+      // Only update if there are penalties to apply
+      if (missingBedtimeReports > 0 || missingWakeUpReports > 0) {
+        return this.scores.updateOne(
+          { _id: score._id },
+          { $inc: updateOperations }
+        );
+      }
+      return Promise.resolve();
+    });
+
+    await Promise.all(updatePromises);
+
+    // NOW tally the scores (with penalties already applied)
     let maxScore = -Infinity;
     const userTotalScores: Map<User, number> = new Map();
 
     for (const score of participantScores) {
+      // Sum the penalized scores (penalties were applied above)
       const totalScore = score.wakeUpScore + score.bedTimeScore;
       userTotalScores.set(score.u, totalScore);
       if (totalScore > maxScore) {
@@ -445,6 +544,58 @@ export default class CompetitionManagerConcept {
       return competitions;
     } catch (e) {
       return { error: "An unexpected error occurred while fetching competitions." };
+    }
+  }
+
+  /**
+   * @query _getReportedDates
+   * @purpose: To retrieve the list of reported dates for a user in a competition for a specific event type.
+   * @requires:
+   *   - `competitionId` must refer to an existing `Competition c` in `competitions`.
+   *   - `userId` must be a member of `c.participants`.
+   * @effects:
+   *   - Returns the list of dates from reportedBedtimeDates for the Score with (u:userId, competition:competitionId) if eventType==SleepEventType.BEDTIME
+   *   - Returns the list of dates from reportedWakeUpDates for the Score with (u:userId, competition:competitionId) if eventType==SleepEventType.WAKETIME
+   *   - Returns an error if competition doesn't exist or user is not a participant
+   */
+  async _getReportedDates(
+    { competitionId, userId, eventType }: {
+      competitionId: CompetitionId;
+      userId: User;
+      eventType: SleepEventType;
+    },
+  ): Promise<string[] | { error: string }> {
+    // Validate eventType
+    if (eventType !== SleepEventType.BEDTIME && eventType !== SleepEventType.WAKETIME) {
+      return { error: "Invalid sleep event type." };
+    }
+
+    // Get the competition
+    const competition = await this.competitions.findOne({ _id: competitionId });
+    if (!competition) {
+      return { error: `Competition with ID ${competitionId} not found.` };
+    }
+
+    // Validate that user is a participant
+    if (!competition.participants.includes(userId)) {
+      return { error: `User ${userId} is not a participant in competition ${competitionId}.` };
+    }
+
+    // Get the score document for this user and competition
+    const score = await this.scores.findOne({
+      u: userId,
+      competition: competitionId,
+    });
+
+    if (!score) {
+      return { error: `Score not found for user ${userId} in competition ${competitionId}.` };
+    }
+
+    // Return the appropriate dates array based on event type
+    if (eventType === SleepEventType.BEDTIME) {
+      return score.reportedBedtimeDates;
+    } else {
+      return score.reportedWakeUpDates;
     }
   }
 }

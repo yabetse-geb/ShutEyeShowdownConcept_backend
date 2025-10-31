@@ -75,31 +75,33 @@ Deno.test("Operational Principle: Full competition lifecycle and leaderboard", a
   assertEquals(competition?.participants.length, 3, `Competition ${compId} should have 3 participants.`);
   assertEquals(competition?.winners, null, `Competition ${compId} winners should be null initially.`);
 
-  // Verify initial scores are 0 for all participants
+  // Verify initial scores are 0 for all participants and date arrays are empty
   let scores = await concept.scores.find({ competition: compId }).toArray();
   assertEquals(scores.length, 3, `Expected 3 score entries for competition ${compId}.`);
   for (const s of scores) {
     assertEquals(s.wakeUpScore, 0, `Initial wakeUpScore for ${s.u} should be 0.`);
     assertEquals(s.bedTimeScore, 0, `Initial bedTimeScore for ${s.u} should be 0.`);
+    assertEquals(s.reportedBedtimeDates.length, 0, `Initial reportedBedtimeDates for ${s.u} should be empty.`);
+    assertEquals(s.reportedWakeUpDates.length, 0, `Initial reportedWakeUpDates for ${s.u} should be empty.`);
   }
   console.log("Competition started and initial scores verified.");
 
   // 2. Record Stats to build up scores over a couple of days
-  // Day 1 (2023-01-01): Alice +1 Bedtime, Bob +1 Waketime, Charlie -1 Bedtime
+  // Day 1 (2023-01-01): Alice +1 Bedtime, Bob +1 Waketime, Charlie 0 Bedtime (failure doesn't decrement)
   console.log("\n--- Recording Stats for Day 1 (2023-01-01) ---");
   await concept.recordStat({ u: userAlice, dateStr: "2023-01-01", eventType: SleepEventType.BEDTIME, success: true });
   await concept.recordStat({ u: userBob, dateStr: "2023-01-01", eventType: SleepEventType.WAKETIME, success: true });
   await concept.recordStat({ u: userCharlie, dateStr: "2023-01-01", eventType: SleepEventType.BEDTIME, success: false });
 
-  // Day 2 (2023-01-02): Alice +1 Waketime, Bob -1 Bedtime
+  // Day 2 (2023-01-02): Alice +1 Waketime, Bob 0 Bedtime (failure doesn't decrement)
   console.log("\n--- Recording Stats for Day 2 (2023-01-02) ---");
   await concept.recordStat({ u: userAlice, dateStr: "2023-01-02", eventType: SleepEventType.WAKETIME, success: true });
   await concept.recordStat({ u: userBob, dateStr: "2023-01-02", eventType: SleepEventType.BEDTIME, success: false });
 
   // Expected Scores by end of Day 2:
   // Alice: BT=1 (from Day1), WT=1 (from Day2) => Total=2
-  // Bob: BT=-1 (from Day2), WT=1 (from Day1) => Total=0
-  // Charlie: BT=-1 (from Day1), WT=0 => Total=-1
+  // Bob: BT=0 (from Day2 failure - no change), WT=1 (from Day1) => Total=1
+  // Charlie: BT=0 (from Day1 failure - no change), WT=0 => Total=0
 
   // Verify scores after recording
   scores = await concept.scores.find({ competition: compId }).toArray();
@@ -109,9 +111,9 @@ Deno.test("Operational Principle: Full competition lifecycle and leaderboard", a
 
   assertEquals(aliceScore?.bedTimeScore, 1, `Alice's bedTimeScore should be 1.`);
   assertEquals(aliceScore?.wakeUpScore, 1, `Alice's wakeUpScore should be 1.`);
-  assertEquals(bobScore?.bedTimeScore, -1, `Bob's bedTimeScore should be -1.`);
+  assertEquals(bobScore?.bedTimeScore, 0, `Bob's bedTimeScore should be 0 (failure doesn't decrement).`);
   assertEquals(bobScore?.wakeUpScore, 1, `Bob's wakeUpScore should be 1.`);
-  assertEquals(charlieScore?.bedTimeScore, -1, `Charlie's bedTimeScore should be -1.`);
+  assertEquals(charlieScore?.bedTimeScore, 0, `Charlie's bedTimeScore should be 0 (failure doesn't decrement).`);
   assertEquals(charlieScore?.wakeUpScore, 0, `Charlie's wakeUpScore should be 0.`);
   console.log("Scores updated and verified after recording stats.");
 
@@ -123,8 +125,8 @@ Deno.test("Operational Principle: Full competition lifecycle and leaderboard", a
   console.log(`Result: ${JSON.stringify(midLeaderboard)}`);
   const expectedMidLeaderboard = [
     { position: 1, userId: userAlice, totalScore: 2 },
-    { position: 2, userId: userBob, totalScore: 0 },
-    { position: 3, userId: userCharlie, totalScore: -1 },
+    { position: 2, userId: userBob, totalScore: 1 },
+    { position: 3, userId: userCharlie, totalScore: 0 },
   ];
   assertEquals(midLeaderboard, expectedMidLeaderboard, "Mid-competition leaderboard should match expected ranking.");
   console.log("Mid-competition leaderboard verified.");
@@ -153,8 +155,14 @@ Deno.test("Operational Principle: Full competition lifecycle and leaderboard", a
   assertEquals(Array.isArray(postLeaderboardResult), true, "Post-competition leaderboard should be an array.");
   const postLeaderboard = postLeaderboardResult as { position: number; userId: ID; totalScore: number }[];
   console.log(`Result: ${JSON.stringify(postLeaderboard)}`);
-  // Leaderboard should remain the same, as scores don't change after ending.
-  assertEquals(postLeaderboard, expectedMidLeaderboard, "Post-competition leaderboard should match expected ranking.");
+  // After endCompetition, penalties are applied for missing reports across totalDays=5
+  // Totals become: Alice=-6, Bob=-7, Charlie=-9, order remains the same
+  const expectedPostLeaderboard = [
+    { position: 1, userId: userAlice, totalScore: -6 },
+    { position: 2, userId: userBob, totalScore: -7 },
+    { position: 3, userId: userCharlie, totalScore: -9 },
+  ];
+  assertEquals(postLeaderboard, expectedPostLeaderboard, "Post-competition leaderboard should reflect penalized totals and same ranking.");
   console.log("Post-competition leaderboard verified.");
 
   console.log("\n--- Operational Principle Test Complete ---");

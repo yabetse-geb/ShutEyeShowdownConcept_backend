@@ -55,12 +55,13 @@ Deno.test("SleepSchedule: Operational Principle (Success Scenario)", async () =>
     const earlyBedtime = "2023-01-01T21:30"; // Success
     const earlyWakeup = "2023-01-02T06:45"; // Success
 
-    // Alice adds a sleep slot
+    // Alice adds a sleep slot with 15 minutes tolerance
     const addSlotResult = await sleepSchedule.addSleepSlot({
       u: userAlice,
       bedTimeStr: targetBedtime,
       wakeTimeStr: targetWakeup,
       dateStr: date1,
+      toleranceMins: 15, // 15 minutes tolerance for bedtime and wake time
     });
     console.log(`Action: addSleepSlot (${userAlice}, ${date1}, ${targetBedtime}, ${targetWakeup}) -> ${JSON.stringify(addSlotResult)}`);
     assertEquals(addSlotResult, {}); // Expect Empty object
@@ -78,23 +79,25 @@ Deno.test("SleepSchedule: Operational Principle (Success Scenario)", async () =>
     assertEquals(slot1_initial_raw.bedTimeSuccess, null);
     assertEquals(slot1_initial_raw.wakeUpSuccess, null);
 
-    // Alice reports bedtime successfully
+    // Alice reports bedtime early - within tolerance
+    // 22:00 target, 21:30 reported = 30 minutes early, but within 15 min tolerance = FAIL
     const reportBedtimeResult = await sleepSchedule.reportBedTime({
       u: userAlice,
       reportedTimeStr: earlyBedtime,
       dateStr: date1,
     });
     console.log(`Action: reportBedtime (${userAlice}, ${date1}, ${earlyBedtime}) -> ${JSON.stringify(reportBedtimeResult)}`);
-    assertEquals(reportBedtimeResult, { bedTimeSuccess: true });
+    assertEquals(reportBedtimeResult, { bedTimeSuccess: false }); // 30 minutes off exceeds 15 minute tolerance
 
-    // Alice reports wake-up unsuccessfully
+    // Alice reports wake-up early - within tolerance
+    // 07:00 target, 06:45 reported = 15 minutes early, exactly within 15 min tolerance = SUCCESS
     const reportWakeupResult = await sleepSchedule.reportWakeUpTime({
       u: userAlice,
       reportedTimeStr: earlyWakeup,
       dateStr: date1,
     });
     console.log(`Action: reportWakeUpTime (${userAlice}, ${date1}, ${earlyWakeup}) -> ${JSON.stringify(reportWakeupResult)}`);
-    assertEquals(reportWakeupResult, { wakeUpSuccess: false });
+    assertEquals(reportWakeupResult, { wakeUpSuccess: true }); // 15 minutes off is exactly within tolerance
 
     // Verify final state for the principle
     const slot1_final_raw = await sleepSchedule._getSleepSlot({ u: userAlice, dateStr: date1 });
@@ -103,8 +106,8 @@ Deno.test("SleepSchedule: Operational Principle (Success Scenario)", async () =>
     expectSleepSlot(slot1_final_raw);
 
 
-    assertEquals(slot1_final_raw.bedTimeSuccess, true);
-    assertEquals(slot1_final_raw.wakeUpSuccess, false);
+    assertEquals(slot1_final_raw.bedTimeSuccess, false);
+    assertEquals(slot1_final_raw.wakeUpSuccess, true);
 
     console.log("--- Finished Test: Operational Principle ---");
   }finally {
@@ -131,6 +134,7 @@ Deno.test("SleepSchedule: Invalid Inputs & Precondition Failures", async () => {
       bedTimeStr: targetBedtime,
       wakeTimeStr: targetWakeup,
       dateStr: "not-a-date",
+      toleranceMins: 15,
     });
     console.log(`Action: addSleepSlot (invalid date) -> ${JSON.stringify(invalidDateResult)}`);
     assertEquals(invalidDateResult, { error: "Invalid date string provided." });
@@ -141,6 +145,7 @@ Deno.test("SleepSchedule: Invalid Inputs & Precondition Failures", async () => {
       bedTimeStr: "22-00", // Invalid format
       wakeTimeStr: targetWakeup,
       dateStr: date2,
+      toleranceMins: 15,
     });
     console.log(`Action: addSleepSlot (invalid bedtime format) -> ${JSON.stringify(invalidBedtimeFormatResult)}`);
     assertEquals(invalidBedtimeFormatResult, { error: "Invalid bedtime string format. Expected YYYY-MM-DDTHH:MM" });
@@ -150,13 +155,14 @@ Deno.test("SleepSchedule: Invalid Inputs & Precondition Failures", async () => {
       bedTimeStr: targetBedtime,
       wakeTimeStr: "7AM", // Invalid format
       dateStr: date3, // Using a new date to prevent collision with date2 test setup
+      toleranceMins: 15,
     });
     console.log(`Action: addSleepSlot (invalid wakeup format) -> ${JSON.stringify(invalidWakeupFormatResult)}`);
     assertEquals(invalidWakeupFormatResult, { error: "Invalid wake-up time string format. Expected YYYY-MM-DDTHH:MM" });
 
 
     // Test addSleepSlot for an already existing slot (duplicate)
-    const firstAddResult = await sleepSchedule.addSleepSlot({ u: userAlice, bedTimeStr: targetBedtime, wakeTimeStr: targetWakeup, dateStr: date2 }); // Create it first
+    const firstAddResult = await sleepSchedule.addSleepSlot({ u: userAlice, bedTimeStr: targetBedtime, wakeTimeStr: targetWakeup, dateStr: date2, toleranceMins: 15 }); // Create it first
     console.log(`Action: addSleepSlot (${userAlice}, ${date2}) - first call successful -> ${JSON.stringify(firstAddResult)}`);
     assertEquals(firstAddResult, {});
 
@@ -165,9 +171,11 @@ Deno.test("SleepSchedule: Invalid Inputs & Precondition Failures", async () => {
       bedTimeStr: targetBedtime,
       wakeTimeStr: targetWakeup,
       dateStr: date2,
+      toleranceMins: 15,
     });
     console.log(`Action: addSleepSlot (${userAlice}, ${date2}) - duplicate call -> ${JSON.stringify(duplicateSlotResult)}`);
-    assertEquals(duplicateSlotResult, { error: `Sleep schedule already exists for user ${userAlice} on ${date2}.` });
+    // Concept replaces existing slot preserving success flags; no error expected
+    assertEquals(duplicateSlotResult, {});
 
     // Test removeSleepSlot for a non-existent slot
     const removeNonExistentResult = await sleepSchedule.removeSleepSlot({ u: userCharlie, dateStr: date3 });
@@ -193,7 +201,7 @@ Deno.test("SleepSchedule: Invalid Inputs & Precondition Failures", async () => {
     assertEquals(reportNonExistentWakeup, { error: `No sleep schedule set for user ${userCharlie} on ${date3} to report wake-up time.` });
 
     // Test reportBedTime with invalid reported time string for an existing slot
-    const addSlotForInvalidReport = await sleepSchedule.addSleepSlot({ u: userAlice, bedTimeStr: targetBedtime, wakeTimeStr: targetWakeup, dateStr: date3 });
+    const addSlotForInvalidReport = await sleepSchedule.addSleepSlot({ u: userAlice, bedTimeStr: targetBedtime, wakeTimeStr: targetWakeup, dateStr: date3, toleranceMins: 15 });
     assertEquals(addSlotForInvalidReport, {});
     const invalidReportedBedtime = await sleepSchedule.reportBedTime({
       u: userAlice,
@@ -222,17 +230,19 @@ Deno.test("SleepSchedule: Reporting Failures (Missed Targets)", async () => {
     const lateBedtime = "2023-01-02T22:30";  // Failure
     const lateWakeup = "2023-01-03T07:30";  // Failure
 
-    // Bob adds a sleep slot
+    // Bob adds a sleep slot with 5 minutes tolerance
     const addSlotBobResult = await sleepSchedule.addSleepSlot({
       u: userBob,
       bedTimeStr: targetBedtime,
       wakeTimeStr: targetWakeup,
       dateStr: date2,
+      toleranceMins: 5, // 5 minutes tolerance for bedtime and wake time
     });
     console.log(`Action: addSleepSlot (${userBob}, ${date2}) -> ${JSON.stringify(addSlotBobResult)}`);
     assertEquals(addSlotBobResult, {});
 
     // Bob reports bedtime late (missed target)
+    // 22:00 target, 22:30 reported = 30 minutes late, exceeds 5 min tolerance
     const reportBedtimeFailResult = await sleepSchedule.reportBedTime({
       u: userBob,
       reportedTimeStr: lateBedtime,
@@ -242,6 +252,7 @@ Deno.test("SleepSchedule: Reporting Failures (Missed Targets)", async () => {
     assertEquals(reportBedtimeFailResult, { bedTimeSuccess: false });
 
     // Bob reports wake-up late (missed target)
+    // 07:00 target, 07:30 reported = 30 minutes late, exceeds 5 min tolerance
     const reportWakeupFailResult = await sleepSchedule.reportWakeUpTime({
       u: userBob,
       reportedTimeStr: lateWakeup,
@@ -277,27 +288,30 @@ Deno.test("SleepSchedule: Multiple Users and Dates", async () => {
     const userBob = "user:Bob" as ID;
     const date3 = "2023-01-03";
 
-    // Alice adds a slot for date3
+    // Alice adds a slot for date3 with 15 minutes tolerance
     const aliceAdd3 = await sleepSchedule.addSleepSlot({
       u: userAlice,
       bedTimeStr: "2023-01-03T23:00",
       wakeTimeStr: "2023-01-04T08:00",
       dateStr: date3,
+      toleranceMins: 15, // 15 minutes tolerance
     });
     console.log(`Action: addSleepSlot (${userAlice}, ${date3}) -> ${JSON.stringify(aliceAdd3)}`);
     assertEquals(aliceAdd3, {});
 
-    // Bob adds a slot for date3
+    // Bob adds a slot for date3 with 5 minutes tolerance
     const bobAdd3 = await sleepSchedule.addSleepSlot({
       u: userBob,
       bedTimeStr: "2023-01-03T21:00",
       wakeTimeStr: "2023-01-04T06:00",
       dateStr: date3,
+      toleranceMins: 5, // 5 minutes tolerance
     });
     console.log(`Action: addSleepSlot (${userBob}, ${date3}) -> ${JSON.stringify(bobAdd3)}`);
     assertEquals(bobAdd3, {});
 
-    // Alice reports for date3 (success)
+    // Alice reports for date3 (success - within 15 min tolerance)
+    // 23:00 target, 22:45 reported = 15 minutes early, exactly within 15 min tolerance
     const aliceReportBedtime3 = await sleepSchedule.reportBedTime({
       u: userAlice,
       reportedTimeStr: "2023-01-03T22:45",
@@ -306,7 +320,8 @@ Deno.test("SleepSchedule: Multiple Users and Dates", async () => {
     console.log(`Action: reportBedtime (${userAlice}, ${date3}) -> ${JSON.stringify(aliceReportBedtime3)}`);
     assertEquals(aliceReportBedtime3, { bedTimeSuccess: true });
 
-    // Bob reports for date3 (failure)
+    // Bob reports for date3 (failure - exceeds 5 min tolerance)
+    // 06:00 target, 06:15 reported = 15 minutes late, exceeds 5 min tolerance
     const bobReportWakeup3 = await sleepSchedule.reportWakeUpTime({
       u: userBob,
       reportedTimeStr: "2023-01-04T06:15", // After target 06:00
@@ -351,12 +366,13 @@ Deno.test("SleepSchedule: Remove Sleep Slot", async () => {
     const targetBedtime = "2023-01-04T22:00";
     const targetWakeup = "2023-01-05T07:00";
 
-    // Alice adds a slot for date4
+    // Alice adds a slot for date4 with 10 minutes tolerance
     const addSlotResult = await sleepSchedule.addSleepSlot({
       u: userAlice,
       bedTimeStr: targetBedtime,
       wakeTimeStr: targetWakeup,
       dateStr: date4,
+      toleranceMins: 10, // 10 minutes tolerance
     });
     console.log(`Action: addSleepSlot (${userAlice}, ${date4}) -> ${JSON.stringify(addSlotResult)}`);
     assertEquals(addSlotResult, {});
@@ -405,16 +421,16 @@ Deno.test("SleepSchedule: _getAllSleepSlotsForUser Query", async () => {
     const targetBedtime = "2023-01-04T22:00";
     const targetWakeup = "2023-01-05T07:00";
 
-    // Setup: Add multiple slots for Alice
-    await sleepSchedule.addSleepSlot({ u: userAlice, bedTimeStr: targetBedtime, wakeTimeStr: targetWakeup, dateStr: date1 });
-    await sleepSchedule.addSleepSlot({ u: userAlice, bedTimeStr: targetBedtime, wakeTimeStr: targetWakeup, dateStr: date2 });
-    await sleepSchedule.addSleepSlot({ u: userAlice, bedTimeStr: "2023-01-03T23:00", wakeTimeStr: "2023-01-04T08:00", dateStr: date3 });
-    await sleepSchedule.addSleepSlot({ u: userAlice, bedTimeStr: targetBedtime, wakeTimeStr: targetWakeup, dateStr: date5 });
+    // Setup: Add multiple slots for Alice with 10 minutes tolerance
+    await sleepSchedule.addSleepSlot({ u: userAlice, bedTimeStr: targetBedtime, wakeTimeStr: targetWakeup, dateStr: date1, toleranceMins: 10 });
+    await sleepSchedule.addSleepSlot({ u: userAlice, bedTimeStr: targetBedtime, wakeTimeStr: targetWakeup, dateStr: date2, toleranceMins: 10 });
+    await sleepSchedule.addSleepSlot({ u: userAlice, bedTimeStr: "2023-01-03T23:00", wakeTimeStr: "2023-01-04T08:00", dateStr: date3, toleranceMins: 10 });
+    await sleepSchedule.addSleepSlot({ u: userAlice, bedTimeStr: targetBedtime, wakeTimeStr: targetWakeup, dateStr: date5, toleranceMins: 10 });
     console.log(`Setup: Added 4 sleep slots for ${userAlice}`);
 
-    // Setup: Add multiple slots for Bob
-    await sleepSchedule.addSleepSlot({ u: userBob, bedTimeStr: targetBedtime, wakeTimeStr: targetWakeup, dateStr: date2 });
-    await sleepSchedule.addSleepSlot({ u: userBob, bedTimeStr: "2023-01-03T21:00", wakeTimeStr: "2023-01-04T06:00", dateStr: date3 });
+    // Setup: Add multiple slots for Bob with 15 minutes tolerance
+    await sleepSchedule.addSleepSlot({ u: userBob, bedTimeStr: targetBedtime, wakeTimeStr: targetWakeup, dateStr: date2, toleranceMins: 15 });
+    await sleepSchedule.addSleepSlot({ u: userBob, bedTimeStr: "2023-01-03T21:00", wakeTimeStr: "2023-01-04T06:00", dateStr: date3, toleranceMins: 15 });
     console.log(`Setup: Added 2 sleep slots for ${userBob}`);
 
 

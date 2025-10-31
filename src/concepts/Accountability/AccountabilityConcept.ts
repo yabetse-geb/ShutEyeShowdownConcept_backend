@@ -78,32 +78,51 @@ interface AdherenceFailure {
   reported: boolean; // Whether this failure has been reported
 }
 
-// Utility for parsing date strings to Date objects (YYYY-MM-DD format assumed)
-function parseDateString(dateString: string): Date | null {
-  const date = new Date(dateString);
-  // Check for "Invalid Date"
-  if (isNaN(date.getTime())) {
-    return null;
-  }
-  // Normalize to start of day in UTC to avoid timezone issues, or use local, but be consistent.
-  // For 'daily performance tracking' ignoring time, setting to midnight UTC is usually good.
-  date.setUTCHours(0, 0, 0, 0);
-  return date;
+/**
+ * Reports:
+ * a set of Reports with
+ *   a user: User
+ *   a accountabilitySeeker: User
+ *   a allReports: string[]
+ */
+interface Report {
+  _id: ID; // Unique ID for the report record
+  user: User; // The user being reported on
+  accountabilitySeeker: User; // The partner/observer seeking accountability
+  allReports: string[]; // Arbitrary report payloads/strings accumulated over time
 }
 
-// Utility for formatting Date objects to string (YYYY-MM-DD)
+// Utility for parsing date strings to Date objects (YYYY-MM-DD format assumed)
+// Normalize to the start of the day in LOCAL time for consistency with other concepts.
+function parseDateString(dateString: string): Date | null {
+  // Strictly treat YYYY-MM-DD as a local calendar date
+  const parts = dateString.split("-").map(Number);
+  if (parts.length !== 3 || parts.some((n) => Number.isNaN(n))) return null;
+  const [y, m, d] = parts;
+  const dt = new Date(y, m - 1, d, 0, 0, 0, 0);
+  // Validate round-trip to guard invalid dates (e.g., 2024-02-30)
+  if (dt.getFullYear() !== y || dt.getMonth() !== m - 1 || dt.getDate() !== d) return null;
+  return dt;
+}
+
+// Utility for formatting Date objects to string (YYYY-MM-DD) using LOCAL date components
 function formatDateToString(date: Date): string {
-    return date.toISOString().slice(0, 10);
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
 }
 
 
 export default class AccountabilityConcept {
   partnerships: Collection<Partnership>;
   adherenceFailures: Collection<AdherenceFailure>;
+  reports: Collection<Report>;
 
   constructor(private readonly db: Db) {
     this.partnerships = this.db.collection(PREFIX + "partnerships");
     this.adherenceFailures = this.db.collection(PREFIX + "adherenceFailures");
+    this.reports = this.db.collection(PREFIX + "reports");
   }
 
   /**
@@ -151,10 +170,21 @@ export default class AccountabilityConcept {
     };
 
     try {
+      // Insert the new partnership
       await this.partnerships.insertOne(newPartnership);
+
+      // Also insert a corresponding Reports entry: (partner, user, [])
+      const newReport: Report = {
+        _id: freshID(),
+        user: partner,
+        accountabilitySeeker: user,
+        allReports: [],
+      };
+      await this.reports.insertOne(newReport);
+
       return {};
     } catch (e) {
-      console.error("Error adding partner:", e);
+      console.error("Error adding partner and initializing report:", e);
       return { error: "Failed to add partner due to database error." };
     }
   }
@@ -190,6 +220,10 @@ export default class AccountabilityConcept {
       if (result.deletedCount === 0) {
         return { error: "Partnership not found for deletion." };
       }
+
+      // Also remove the corresponding Reports pairing (partner, user)
+      await this.reports.deleteOne({ user: partner, accountabilitySeeker: user });
+
       return {};
     } catch (e) {
       console.error("Error removing partner:", e);
@@ -344,13 +378,15 @@ export default class AccountabilityConcept {
     // effects: Find all adherence failures for the given user whose date is between startDate and endDate (inclusive)
     // and whose reported flag is false.
     try {
+      // Use [startDate, dayAfterEndDate) to avoid UTC boundary issues
+      const dayAfterEndDate = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate() + 1, 0, 0, 0, 0);
       const failures = await this.adherenceFailures
         .find({
           failingUser: user,
           reported: false,
           date: {
             $gte: startDate,
-            $lte: endDate,
+            $lt: dayAfterEndDate,
           },
         })
         .toArray();
@@ -375,25 +411,26 @@ export default class AccountabilityConcept {
   }
 
   /**
-   * generateNotificationMessage
-   * Generates a notification message for a partner based on reporting frequency and marks failures as reported.
+   * updateReports
+   * Generates failure reports for each partnership according to preferences and appends them to Reports.
    *
    * @param {Object} args - The action arguments.
-   * @param {User} args.user - The user who initiated the partnership (whose failures are being reported).
+   * @param {User} args.user - The user whose failures are being summarized for partners.
    * @param {string} args.date - The current date for context (e.g., "YYYY-MM-DD").
-   * @returns {{message: string} | {error: string}} The generated notification message or an empty string, or an error object.
+   * @returns {Empty | {error: string}} Empty on success, or an error object.
    *
    * @requires The user has at least one partnership recorded in Partnerships. date is parseable into a Date object.
    * @effects Dynamically generates notifications based on partnership preferences (Immediate, Daily, Weekly),
-   *          marks relevant failures as reported, and updates the partnership's lastReportDate.
+   *          marks relevant failures as reported, updates the partnership's lastReportDate,
+   *          and appends the generated report string to the Reports document with (user: partner, accountabilitySeeker: user).
    */
-  async generateNotificationMessage({
+  async updateReports({
     user,
     date: currentDateString,
   }: {
     user: User;
     date: string;
-  }): Promise<{ message: string } | { error: string }> {
+  }): Promise<Empty | { error: string }> {
     // requires: date is parseable into a Date object
     const currentDate = parseDateString(currentDateString);
     if (!currentDate) {
@@ -408,7 +445,7 @@ export default class AccountabilityConcept {
       return { error: "User has no recorded partnerships." };
     }
 
-    let allMessages: string[] = [];
+    let allMessages: { partner: User; message: string }[] = [];
 
     for (const partnership of partnerships) {
       let message = "";
@@ -419,14 +456,17 @@ export default class AccountabilityConcept {
       const getAndMarkFailures = async (
         failingUser: User,
         start: Date,
-        end: Date,
+        endInclusive: Date,
       ) => {
+        // Build [start, nextDayOfEnd) to avoid UTC boundary issues
+        const startOfDay = new Date(start.getFullYear(), start.getMonth(), start.getDate(), 0, 0, 0, 0);
+        const endExclusive = new Date(endInclusive.getFullYear(), endInclusive.getMonth(), endInclusive.getDate() + 1, 0, 0, 0, 0);
         const failures = await this.adherenceFailures
           .find({
             failingUser: failingUser,
             reported: false,
             failType: { $in: partnership.notifyTypes }, // Filter by preferred notification types
-            date: { $gte: start, $lte: end },
+            date: { $gte: startOfDay, $lt: endExclusive },
           })
           .toArray();
 
@@ -461,11 +501,11 @@ export default class AccountabilityConcept {
           // Daily: check failures for *yesterday*
           const previousDay = new Date(currentDate);
           previousDay.setDate(currentDate.getDate() - 1);
-          previousDay.setUTCHours(0, 0, 0, 0); // Ensure it's start of day
+          previousDay.setHours(0, 0, 0, 0); // Ensure it's start of local day
 
           // Only report if last report was before the previous day (to avoid multiple reports for same day)
           const lastReportForDaily = partnership.lastReportDate ? new Date(partnership.lastReportDate) : null;
-          lastReportForDaily?.setUTCHours(0, 0, 0, 0);
+          lastReportForDaily?.setHours(0, 0, 0, 0);
 
           if (!lastReportForDaily || lastReportForDaily.getTime() < currentDate.getTime()) {
              const report = await getAndMarkFailures(
@@ -473,19 +513,19 @@ export default class AccountabilityConcept {
                 previousDay,
                 previousDay,
              );
-             if (report !== "No adherence failures for this period.") {
-                message = `Daily Report for ${partnership.partner}:\n${report}`;
-                shouldUpdateLastReportDate = true;
-             }
+            if (report !== "No adherence failures for this period.") {
+              message = `Daily Report for ${partnership.partner}:\n${report}`;
+              shouldUpdateLastReportDate = true;
+            }
           }
         } else if (partnership.reportFrequency === FrequencyType.WEEKLY) {
           // Weekly: check failures for the last 7 days
           const sevenDaysAgo = new Date(currentDate);
           sevenDaysAgo.setDate(currentDate.getDate() - 7);
-          sevenDaysAgo.setUTCHours(0, 0, 0, 0); // Ensure it's start of day
+          sevenDaysAgo.setHours(0, 0, 0, 0); // Ensure it's start of local day
 
           const lastReportForWeekly = partnership.lastReportDate ? new Date(partnership.lastReportDate) : null;
-          lastReportForWeekly?.setUTCHours(0, 0, 0, 0);
+          lastReportForWeekly?.setHours(0, 0, 0, 0);
 
           // Only report if 7+ days have passed since the last report, or no report yet.
           const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
@@ -503,7 +543,7 @@ export default class AccountabilityConcept {
         }
 
         if (message) {
-          allMessages.push(message);
+          allMessages.push({ partner: partnership.partner, message });
 
           // Mark those failures as reported.
           if (failuresToMarkReported.length > 0) {
@@ -530,12 +570,16 @@ export default class AccountabilityConcept {
       }
     }
 
-    // If there are no new messages to send, return an empty string.
-    if (allMessages.length === 0) {
-      return { message: "" };
+    // Append messages to Reports for each partner
+    for (const entry of allMessages) {
+      await this.reports.updateOne(
+        { user: entry.partner, accountabilitySeeker: user },
+        { $push: { allReports: entry.message } },
+        { upsert: true },
+      );
     }
 
-    return { message: allMessages.join("\n\n---\n\n") };
+    return {};
   }
 
   /**
@@ -551,5 +595,41 @@ export default class AccountabilityConcept {
       })
       .toArray();
     return partnerships;
+  }
+
+  /**
+   * _getAccountabilitySeekersForUser
+   * Returns the list of users who have designated the given mentor as their partner.
+   *
+   * @param args.mentor The mentor user ID to find seekers for
+   * @returns List<User> or { error }
+   */
+  async _getAccountabilitySeekersForUser(
+    { mentor }: { mentor: User },
+  ): Promise<User[] | { error: string }> {
+    try {
+      const partnerships = await this.partnerships
+        .find({ partner: mentor })
+        .project<{ user: User }>({ user: 1, _id: 0 })
+        .toArray();
+      return partnerships.map((p) => p.user);
+    } catch (e) {
+      return { error: "Failed to retrieve accountability seekers." };
+    }
+  }
+
+  /**
+   * _getAllReports
+   * Returns the stored list of report strings for the given (user, accountabilitySeeker) pair.
+   */
+  async _getAllReports(
+    { user, accountabilitySeeker }: { user: User; accountabilitySeeker: User },
+  ): Promise<string[] | { error: string }> {
+    try {
+      const report = await this.reports.findOne({ user, accountabilitySeeker });
+      return report?.allReports ?? [];
+    } catch (e) {
+      return { error: "Failed to retrieve reports." };
+    }
   }
 }

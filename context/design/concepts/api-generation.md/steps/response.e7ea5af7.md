@@ -1,13 +1,9 @@
-[@concept-design-overview](../../background/concept-design-overview.md)
+---
+timestamp: 'Mon Oct 27 2025 13:06:42 GMT-0400 (Eastern Daylight Time)'
+parent: '[[..\20251027_130642.472f600d.md]]'
+content_id: e7ea5af7468d36a9cfed8f9148b5010a72397c88ae71f9663fa9903b6e8dc62b
+---
 
-[@concept-specifications](../../background/concept-specifications.md)
-
-[@implementing-concepts](../../background/implementing-concepts.md)
-
-[@SleepSchedule](SleepSchedule.md)
-
-[@implementation](../CompetitionManager/implementation.md)
-# implement: SleepSchedule 
 # response:
 
 ```typescript
@@ -664,3 +660,7 @@ export default class SleepScheduleConcept {
 
 }
 ```
+
+## CompetitionManager
+
+Specification:

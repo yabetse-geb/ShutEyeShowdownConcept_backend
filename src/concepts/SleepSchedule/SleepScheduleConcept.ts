@@ -96,6 +96,7 @@ interface SleepSlot {
   date: Date; // Stored as Date object, normalized to start of day
   bedTime: Date; // full datetime to handle sleeping past midnight cases
   wakeUpTime: Date; // full datetime to handle waking up past midnight cases (should be after bedTime)
+  toleranceMins:number; // minutes of tolerance for wake up time and bed time
   wakeUpSuccess: boolean | null;
   bedTimeSuccess: boolean | null;
 }
@@ -111,20 +112,21 @@ export default class SleepScheduleConcept {
    * @action addSleepSlot
    * @requires:
    *   `dateStr`, `bedTimeStr`, and `wakeTimeStr` must be valid strings parseable into `Date` and `Time` objects respectively.
-   *   There doesn't already exist a `SleepSlot` for `u` on the parsed `date`.
    * @effects:
-   *   Parses `dateStr` into a `Date` object: `date`.
+   *   Parses `dateStr` into a `Date` object: `date`. passed in like "2025-10-16"
    *   Parses `bedTimeStr` into a `Date` object: `bedTime`. passed in like 2025-10-16T00:20
    *   Parses `wakeTimeStr` into a `Date` object: `wakeUpTime`. passed in like "2025-10-16T07:30"
+   *   If a `SleepSlot` already exists for `u` on the parsed `date`, preserves its `wakeUpSuccess` and `bedTimeSuccess` values, then removes it.
    *   Creates a new `SleepSlot` for `u` on `date` with `bedTime` and `wakeUpTime` targets.
-   *   Initializes `wakeUpSuccess` and `bedTimeSuccess` to `false` for the new `SleepSlot`.
+   *   Sets `wakeUpSuccess` and `bedTimeSuccess` to the preserved values (or `null` if no existing slot).
    */
   async addSleepSlot(
-    { u, bedTimeStr, wakeTimeStr, dateStr }: {
+    { u, bedTimeStr, wakeTimeStr, dateStr, toleranceMins }: {
       u: User;
       bedTimeStr: string;
       wakeTimeStr: string;
       dateStr: string;
+      toleranceMins: number;
     },
   ): Promise<Empty | { error: string }> {
     const date = parseDateString(dateStr);
@@ -142,12 +144,17 @@ export default class SleepScheduleConcept {
       return { error: "Invalid wake-up time string format. Expected YYYY-MM-DDTHH:MM" };
     }
 
-    // Requires: There doesn't already exist a SleepSlot for u on the parsed date.
+    // Effects: If a SleepSlot already exists for u on the parsed date, save its success values
     const existingSlot = await this.sleepSlots.findOne({ u, date });
+    let savedWakeUpSuccess = null;
+    let savedBedTimeSuccess = null;
+
     if (existingSlot) {
-      return {
-        error: `Sleep schedule already exists for user ${u} on ${dateStr}.`,
-      };
+      // Save the existing success values before removing the slot
+      savedWakeUpSuccess = existingSlot.wakeUpSuccess;
+      savedBedTimeSuccess = existingSlot.bedTimeSuccess;
+      // Remove the existing slot before creating a new one
+      await this.removeSleepSlot({ u, dateStr });
     }
 
     // Effects: Creates a new SleepSlot
@@ -157,8 +164,9 @@ export default class SleepScheduleConcept {
       date,
       bedTime,
       wakeUpTime,
-      wakeUpSuccess: null, // As per spec, null until reported
-      bedTimeSuccess: null, // As per spec, null until reported
+      toleranceMins,
+      wakeUpSuccess: savedWakeUpSuccess, // Preserve existing value or null if new slot
+      bedTimeSuccess: savedBedTimeSuccess, // Preserve existing value or null if new slot
     };
     await this.sleepSlots.insertOne(newSleepSlot);
 
@@ -168,7 +176,7 @@ export default class SleepScheduleConcept {
   /**
    * @action removeSleepSlot
    * @requires:
-   *   `dateStr` must be a valid date string parseable into a `Date`.
+   *   `dateStr` must be a valid date string parseable into a `Date`. should be format YYYY-MM-DD
    *   There exists a `SleepSlot` with `user u` and the parsed `date`.
    * @effects:
    *   Parses `dateStr` into a `Date` object: `date`.
@@ -204,7 +212,8 @@ export default class SleepScheduleConcept {
    * @effects:
    *   Parses `reportedTimeStr` into a `Time` object: `reportedTime`.
    *   Parses `dateStr` into a `Date` object: `date`.
-   *   Sets `bedTimeSuccess = reportedTime < bedTime` for the `SleepSlot` with (`u`, `date`).
+   *   Calculates the difference in minutes between reported time and bedtime using local time.
+   *   Sets `bedTimeSuccess = true` if the absolute difference (handling wrap-around across midnight) is within the tolerance.
    *   Returns `bedTimeSuccess`.
    */
   async reportBedTime(
@@ -234,9 +243,19 @@ export default class SleepScheduleConcept {
       };
     }
 
-    // Effects: Sets bedTimeSuccess = reportedTime <= bedTime
-    // Lexicographical comparison for HH:MM strings works for chronological order.
-    const bedTimeSuccess = reportedTime <= sleepSlot.bedTime;
+    // Effects: Sets bedTimeSuccess based on tolerance using local time
+    // Extract hours and minutes from both times for local time comparison
+    const reportedMins = reportedTime.getHours() * 60 + reportedTime.getMinutes();
+    const bedTimeMins = sleepSlot.bedTime.getHours() * 60 + sleepSlot.bedTime.getMinutes();
+
+    // Calculate absolute difference in minutes-of-day
+    let diffMins = Math.abs(reportedMins - bedTimeMins);
+
+    // Handle wrap-around case (e.g., 23:00 to 01:00 is 2 hours, not 22 hours)
+    const wrapAroundDiff = 1440 - diffMins;
+    diffMins = Math.min(diffMins, wrapAroundDiff);
+
+    const bedTimeSuccess = diffMins <= sleepSlot.toleranceMins;
 
     await this.sleepSlots.updateOne(
       { _id: sleepSlot._id },
@@ -255,7 +274,8 @@ export default class SleepScheduleConcept {
    * @effects:
    *   Parses `reportedTimeStr` into a `Time` object: `reportedTime`.
    *   Parses `dateStr` into a `Date` object: `date`.
-   *   Sets `wakeUpSuccess = reportedTime < wakeUpTime` for the `SleepSlot` with (`u`, `date`).
+   *   Calculates the difference in minutes between reported time and wake-up time using local time.
+   *   Sets `wakeUpSuccess = true` if the absolute difference (handling wrap-around across midnight) is within the tolerance.
    *   Returns `wakeUpSuccess`.
    */
   async reportWakeUpTime(
@@ -285,11 +305,19 @@ export default class SleepScheduleConcept {
       };
     }
 
-    // Effects: Sets wakeUpSuccess = reportedTime < wakeUpTime
-    // Lexicographical comparison for HH:MM strings works for chronological order.
-    const targetWakeTime= new Date(sleepSlot.wakeUpTime);
-    const differenceInMins= Math.abs(reportedTime.getTime() - targetWakeTime.getTime());
-    const wakeUpSuccess = differenceInMins <= 5 * 60 * 1000; // within 5 minutes
+    // Effects: Sets wakeUpSuccess based on tolerance using local time
+    // Extract hours and minutes from both times for local time comparison
+    const reportedMins = reportedTime.getHours() * 60 + reportedTime.getMinutes();
+    const wakeUpTimeMins = sleepSlot.wakeUpTime.getHours() * 60 + sleepSlot.wakeUpTime.getMinutes();
+
+    // Calculate absolute difference in minutes-of-day
+    let diffMins = Math.abs(reportedMins - wakeUpTimeMins);
+
+    // Handle wrap-around case (e.g., 23:00 to 01:00 is 2 hours, not 22 hours)
+    const wrapAroundDiff = 1440 - diffMins;
+    diffMins = Math.min(diffMins, wrapAroundDiff);
+
+    const wakeUpSuccess = diffMins <= sleepSlot.toleranceMins;
 
     await this.sleepSlots.updateOne(
       { _id: sleepSlot._id },

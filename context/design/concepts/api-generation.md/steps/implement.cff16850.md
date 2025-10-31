@@ -1,12 +1,8 @@
-[@concept-design-overview](../../background/concept-design-overview.md)
-
-[@concept-specifications](../../background/concept-specifications.md)
-
-[@implementing-concepts](../../background/implementing-concepts.md)
-
-[@CompetitionManager](CompetitionManager.md)
-
-# implement: update CompetitionManager to have a query that returns all competitions for a user
+---
+timestamp: 'Mon Oct 27 2025 13:14:56 GMT-0400 (Eastern Daylight Time)'
+parent: '[[..\20251027_131456.56170729.md]]'
+content_id: cff1685057ba2e2e7381f73b2fcc3660e3be7d586602e4d907468c8ec200183b
+---
 
 # implement: CompetitionManager
 
@@ -1111,3 +1107,7 @@ export default class CompetitionManagerConcept {
 
 }
 ```
+
+## Accountability
+
+Specification:

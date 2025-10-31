@@ -1,3 +1,12 @@
+---
+timestamp: 'Mon Oct 27 2025 13:14:56 GMT-0400 (Eastern Daylight Time)'
+parent: '[[..\20251027_131456.56170729.md]]'
+content_id: 57902f61603d127f8ddaedf4ae7df4f42007ef193954c30b3f958a1b7502ca56
+---
+
+# response:
+
+```typescript
 import { Collection, Db } from "npm:mongodb";
 import { Empty, ID } from "@utils/types.ts";
 import { freshID } from "@utils/database.ts";
@@ -189,21 +198,6 @@ export default class PasswordAuthConcept {
   }
 
   /**
-   * _getUsername(userId: UserID): { username: string }
-   * @requires: there exists a User with the given userId
-   * @effects: returns the username field of the User with that _id
-   */
-  async _getUsername(
-    { userId }: { userId: UserID },
-  ): Promise<{ username: string } | { error: string }> {
-    const user = await this.users.findOne({ _id: userId });
-    if (!user) {
-      return { error: "User not found." };
-    }
-    return { username: user.username };
-  }
-
-  /**
    * isRegistered(username:String): Bool
    *
    * @effects: returns true if a User exists with the given username, otherwise false
@@ -237,3 +231,8 @@ export default class PasswordAuthConcept {
     return {};
   }
 }
+```
+
+**Purpose:** Enable structured accountability between users by recording their partnerships, adherence tracking preferences, and report frequencies. The concept maintains only the data required to support external systems in generating notifications or summaries—it does not send or deliver messages itself. By storing which types of adherence failures are monitored and when reports should be produced, the concept ensures that each partnership’s accountability data remains accurate, consistent, and ready for use by reporting or notification services.
+
+***
