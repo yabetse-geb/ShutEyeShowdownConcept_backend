@@ -1,1 +1,5 @@
 Now the Accountability concept as additional states in the set of Partnerships which are notifyTypes (which types of notifications should the partner receive for instance only bed time failures) and reportFrequency (users can now set how often a notification is sent to their accountability partners). Also the concept no longer handles the sending of notifications (this will be handled in a sync) but it generates the notification responses according to the notifyTypes and reportFrequency's set by the user.
+
+
+# 4b major changes
+Added an extra state called Reports so that instead of the failures being emailed they will now be kept within the app and showed within the app for the accountability partner.

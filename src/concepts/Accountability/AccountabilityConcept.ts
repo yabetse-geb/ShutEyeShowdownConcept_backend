@@ -95,21 +95,28 @@ interface Report {
 // Utility for parsing date strings to Date objects (YYYY-MM-DD format assumed)
 // Normalize to the start of the day in LOCAL time for consistency with other concepts.
 function parseDateString(dateString: string): Date | null {
-  // Strictly treat YYYY-MM-DD as a local calendar date
-  const parts = dateString.split("-").map(Number);
-  if (parts.length !== 3 || parts.some((n) => Number.isNaN(n))) return null;
-  const [y, m, d] = parts;
-  const dt = new Date(y, m - 1, d, 0, 0, 0, 0);
-  // Validate round-trip to guard invalid dates (e.g., 2024-02-30)
-  if (dt.getFullYear() !== y || dt.getMonth() !== m - 1 || dt.getDate() !== d) return null;
-  return dt;
+  // // Strictly treat YYYY-MM-DD as a local calendar date
+  // const parts = dateString.split("-").map(Number);
+  // if (parts.length !== 3 || parts.some((n) => Number.isNaN(n))) return null;
+  // const [y, m, d] = parts;
+  // const dt = new Date(y, m - 1, d, 0, 0, 0, 0);
+  // // Validate round-trip to guard invalid dates (e.g., 2024-02-30)
+  // if (dt.getFullYear() !== y || dt.getMonth() !== m - 1 || dt.getDate() !== d) return null;
+  // return dt;
+  const date = new Date(dateString);
+  if (isNaN(date.getTime())) {
+    return null; // Invalid date string
+  }
+  // Normalize to the start of the day in local time (e.g., YYYY-MM-DDT00:00:00.000)
+  // return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
 }
 
-// Utility for formatting Date objects to string (YYYY-MM-DD) using LOCAL date components
+
 function formatDateToString(date: Date): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
+  const y = date.getUTCFullYear();
+  const m = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const d = String(date.getUTCDate()).padStart(2, "0");
   return `${y}-${m}-${d}`;
 }
 

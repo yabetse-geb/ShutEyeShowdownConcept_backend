@@ -5,9 +5,11 @@ import SleepScheduleConcept from "./SleepScheduleConcept.ts";
 import SleepSlot from "./SleepScheduleConcept.ts"; // Import SleepSlot as default export
 
 // Helper to normalize dates for comparison, matching how they are stored in the concept.
+// parseDateString creates UTC dates, so we match that behavior here.
 function normalizeDateString(dateStr: string): Date {
-  const date = new Date(dateStr); // Corrected typo: new new Date() -> new Date()
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const date = new Date(dateStr);
+  // Match parseDateString: create UTC date at midnight
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
 }
 
 // Type guard for SleepSlot

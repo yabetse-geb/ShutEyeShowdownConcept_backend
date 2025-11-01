@@ -13,3 +13,7 @@ Now it has been flattened with CompeititionManager having a set of Competitions 
 	- a bedTimeScore Number
 
 This is because all that needs to be tracked is the ongoing scores, not the score changes per day. Furthermore since there can be more than 2 in a competition, there can also be a set of winners which was added to the Competitions. Lastly some behavorial changes include the fact that participants of a competition can leave by adding the removeParticipant action, and they can see a current leader board of a Competition by adding the getLeaderboard
+
+
+# 4b major changes
+Changed how scoring is done now users will get +1 point for success, 0 for failures, and -1 for failure to report sleep events. This discourages a bad practice of avoiding reporting because of a failure, and it now encourages honest reporting even if failing, but punishes neglecting to report.

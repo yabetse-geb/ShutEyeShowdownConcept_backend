@@ -31,21 +31,23 @@ enum FrequencyType {
 // --- Test Helpers ---
 function addDays(baseDate: Date, days: number): Date {
   const newDate = new Date(baseDate);
-  newDate.setDate(baseDate.getDate() + days);
-  newDate.setHours(0, 0, 0, 0); // Normalize to start of local day
+  newDate.setUTCDate(baseDate.getUTCDate() + days);
+  newDate.setUTCHours(0, 0, 0, 0); // Normalize to start of UTC day
   return newDate;
 }
 
 function formatDate(date: Date): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`; // YYYY-MM-DD in local time
+  // Match formatDateToString: use UTC components
+  const y = date.getUTCFullYear();
+  const m = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const d = String(date.getUTCDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`; // YYYY-MM-DD using UTC components
 }
 
-// Fixed base date for consistent testing
+// Fixed base date for consistent testing (normalized to UTC midnight)
 const BASE_DATE = new Date("2024-01-10T12:00:00.000Z"); // Wednesday, Jan 10th, 2024
-BASE_DATE.setHours(0, 0, 0, 0);
+// Normalize to UTC midnight to match parseDateString behavior
+BASE_DATE.setUTCHours(0, 0, 0, 0);
 
 // User IDs (type branded as ID)
 const userAlice = "user:Alice" as ID;
@@ -71,12 +73,13 @@ Deno.test("1. Operational Principle: Establish, Configure, Record, Report Daily"
     // Helper to retrieve partnership for verification
     const getPartnership = async (user: ID, partner: ID) =>
       await concept.partnerships.findOne({ user, partner });
-    // Helper to retrieve failures for verification (inclusive day range in local time)
+    // Helper to retrieve failures for verification - dates stored as UTC from parseDateString
     const getFailures = async (failingUser: ID, startDate: Date, endDate: Date) => {
-      // Derive day boundaries from date strings to mirror concept's string parsing
+      // Parse dates from UTC-formatted strings to match concept's parseDateString behavior
       const dayStartFromStr = (dateStr: string) => {
-        const d = new Date(dateStr);
-        return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
+        const parts = dateStr.split("-").map(Number);
+        const [y, m, d] = parts;
+        return new Date(Date.UTC(y, m - 1, d, 0, 0, 0, 0));
       };
       const start = dayStartFromStr(formatDate(startDate));
       const endStart = dayStartFromStr(formatDate(endDate));
@@ -93,9 +96,9 @@ Deno.test("1. Operational Principle: Establish, Configure, Record, Report Daily"
     const yesterdayDate = addDays(currentTestDate, -1);
     const formattedCurrentDate = formatDate(currentTestDate);
     const formattedYesterdayDate = formatDate(yesterdayDate);
-    // Derive a local-midnight Date from the formatted string to mirror concept parsing
-    const partsY = formattedYesterdayDate.split("-");
-    const yesterdayDateLocal = new Date(Number(partsY[0]), Number(partsY[1]) - 1, Number(partsY[2]), 0, 0, 0, 0);
+    // Derive a UTC-midnight Date from the formatted string to mirror concept parsing
+    const partsY = formattedYesterdayDate.split("-").map(Number);
+    const yesterdayDateUTC = new Date(Date.UTC(partsY[0], partsY[1] - 1, partsY[2], 0, 0, 0, 0));
 
     // Action: addPartner
     console.log(`Action: addPartner(${userAlice}, ${userBob})`);
@@ -160,10 +163,10 @@ Deno.test("1. Operational Principle: Establish, Configure, Record, Report Daily"
     console.log("Output:", recordFailureResult);
     assertEquals(recordFailureResult, {}, "recordFailure should succeed");
 
-    // Verify the failure was recorded on the expected local calendar day
+    // Verify the failure was recorded on the expected calendar day (UTC-based)
     const insertedFailure = await concept.adherenceFailures.findOne({ failingUser: userAlice });
     assertEquals(insertedFailure !== null, true, "A failure should exist for the user");
-    assertEquals(formatDate(insertedFailure!.date), formattedYesterdayDate, "Failure should be stored on yesterday's local date");
+    assertEquals(formatDate(insertedFailure!.date), formattedYesterdayDate, "Failure should be stored on yesterday's date");
     assertEquals(insertedFailure!.reported, false, "Failure should initially be unreported");
 
     // Action: updateReports (triggers daily report appended to Reports)

@@ -67,7 +67,7 @@ function parseDateString(dateStr: string): Date | null {
     return null; // Invalid date string
   }
   // Normalize to the start of the day in local time (e.g., YYYY-MM-DDT00:00:00.000)
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
 }
 
 /**
