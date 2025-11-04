@@ -613,7 +613,7 @@ export default class AccountabilityConcept {
    */
   async _getAccountabilitySeekersForUser(
     { mentor }: { mentor: User },
-  ): Promise<User[] | { error: string }> {
+  ): Promise<User[]> {
     try {
       const partnerships = await this.partnerships
         .find({ partner: mentor })
@@ -621,7 +621,7 @@ export default class AccountabilityConcept {
         .toArray();
       return partnerships.map((p) => p.user);
     } catch (e) {
-      return { error: "Failed to retrieve accountability seekers." };
+      return []; // On error, return empty list;
     }
   }
 
@@ -631,12 +631,12 @@ export default class AccountabilityConcept {
    */
   async _getAllReports(
     { user, accountabilitySeeker }: { user: User; accountabilitySeeker: User },
-  ): Promise<string[] | { error: string }> {
+  ): Promise<string[]> {
     try {
       const report = await this.reports.findOne({ user, accountabilitySeeker });
       return report?.allReports ?? [];
     } catch (e) {
-      return { error: "Failed to retrieve reports." };
+      return []; // On error, return empty list];
     }
   }
 }

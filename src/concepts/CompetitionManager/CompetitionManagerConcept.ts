@@ -421,13 +421,12 @@ export default class CompetitionManagerConcept {
     { competitionId }: { competitionId: CompetitionId },
   ): Promise<
   | { position: number; userId: User; totalScore: number }[]
-  | { error: string }
 >
   {
     const competition = await this.competitions.findOne({ _id: competitionId });
 
     if (!competition) {
-      return { error: `Competition with ID ${competitionId} not found.` };
+      return [];  // Return empty list if competition not found
     }
 
     const participantScores = await this.scores.find({
@@ -537,13 +536,13 @@ export default class CompetitionManagerConcept {
   }
 
   async _getCompetitionsForUser(
-    { u }: { u: User },
+    { user }: { user: User },
   ): Promise<Competition[] | { error: string }> {
     try {
-      const competitions = await this.competitions.find({ participants: u, active: true }).toArray();
+      const competitions = await this.competitions.find({ participants: user, active: true }).toArray();
       return competitions;
     } catch (e) {
-      return { error: "An unexpected error occurred while fetching competitions." };
+      return [];
     }
   }
 
@@ -564,21 +563,21 @@ export default class CompetitionManagerConcept {
       userId: User;
       eventType: SleepEventType;
     },
-  ): Promise<string[] | { error: string }> {
+  ): Promise<string[]> {
     // Validate eventType
     if (eventType !== SleepEventType.BEDTIME && eventType !== SleepEventType.WAKETIME) {
-      return { error: "Invalid sleep event type." };
+      return []; // Invalid event type
     }
 
     // Get the competition
     const competition = await this.competitions.findOne({ _id: competitionId });
     if (!competition) {
-      return { error: `Competition with ID ${competitionId} not found.` };
+      return []; // Competition not found
     }
 
     // Validate that user is a participant
     if (!competition.participants.includes(userId)) {
-      return { error: `User ${userId} is not a participant in competition ${competitionId}.` };
+      return []; // User is not a participant
     }
 
     // Get the score document for this user and competition
@@ -588,7 +587,7 @@ export default class CompetitionManagerConcept {
     });
 
     if (!score) {
-      return { error: `Score not found for user ${userId} in competition ${competitionId}.` };
+      return []; // Score not found
     }
 
     // Return the appropriate dates array based on event type

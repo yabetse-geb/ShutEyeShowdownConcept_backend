@@ -11,12 +11,14 @@ import AccountabilityConcept from "./Accountability/AccountabilityConcept.ts";
 import CompetitionManagerConcept from "./CompetitionManager/CompetitionManagerConcept.ts";
 import PasswordAuthConcept from "./PasswordAuth/PasswordAuthConcept.ts";
 import RequestingConcept from "./Requesting/RequestingConcept.ts";
+import SessioningConcept from "./Sessioning/SessioningConcept.ts";
 import SleepScheduleConcept from "./SleepSchedule/SleepScheduleConcept.ts";
 
 export type { default as AccountabilityConcept } from "./Accountability/AccountabilityConcept.ts";
 export type { default as CompetitionManagerConcept } from "./CompetitionManager/CompetitionManagerConcept.ts";
 export type { default as PasswordAuthConcept } from "./PasswordAuth/PasswordAuthConcept.ts";
 export type { default as RequestingConcept } from "./Requesting/RequestingConcept.ts";
+export type { default as SessioningConcept } from "./Sessioning/SessioningConcept.ts";
 export type { default as SleepScheduleConcept } from "./SleepSchedule/SleepScheduleConcept.ts";
 
 // Initialize the database connection
@@ -26,4 +28,5 @@ export const Accountability = Engine.instrumentConcept(new AccountabilityConcept
 export const CompetitionManager = Engine.instrumentConcept(new CompetitionManagerConcept(db));
 export const PasswordAuth = Engine.instrumentConcept(new PasswordAuthConcept(db));
 export const Requesting = Engine.instrumentConcept(new RequestingConcept(db));
+export const Sessioning = Engine.instrumentConcept(new SessioningConcept(db));
 export const SleepSchedule = Engine.instrumentConcept(new SleepScheduleConcept(db));

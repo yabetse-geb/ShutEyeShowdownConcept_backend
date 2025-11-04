@@ -335,12 +335,12 @@ export default class SleepScheduleConcept {
    */
   async _getSleepSlot(
     { u, dateStr }: { u: User; dateStr: string },
-  ): Promise<SleepSlot | null | { error: string }> {
+  ): Promise<SleepSlot[]> {
     const date = parseDateString(dateStr);
     if (!date) {
-      return { error: "Invalid date string provided." };
+      return [];
     }
-    return await this.sleepSlots.findOne({ u, date });
+    return await this.sleepSlots.find({ u, date }).toArray();
   }
 
   /**

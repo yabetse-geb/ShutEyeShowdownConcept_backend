@@ -26,7 +26,7 @@
 	    - a date:Date
 	    - a failType: SleepEventType
 	    - reported:Boolean
-	- a set of Reports with 
+	- a set of Reports with
 		- a user:User (person receiving reports for an accountability seeker)
 		- a accountabilitySeeker:User
 		- a allReports:String[]
@@ -57,7 +57,7 @@
 				- Return a string listing each failure’s type and date in readable form.
 			- otherwise:
 				- Return the string "No adherence failures for this period."
-	- updateReports(user: User): 
+	- updateReports(user: User, currentDate:string):
 		- requires:
 			- The user has at least one partnership recorded in Partnerships.
 		- effects:

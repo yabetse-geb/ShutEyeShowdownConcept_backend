@@ -50,6 +50,34 @@
             }
           },
           {
+            "id": "f4b3a3bf6f478391",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "design/concepts/api-generation.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "api-generation"
+            }
+          },
+          {
+            "id": "407cbf56cac36c50",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "design/brainstorming/CreatingSyncs.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "CreatingSyncs"
+            }
+          },
+          {
             "id": "a64dd6ea3ed0f428",
             "type": "leaf",
             "state": {
@@ -148,7 +176,7 @@
             }
           }
         ],
-        "currentTab": 2
+        "currentTab": 4
       }
     ],
     "direction": "vertical"
@@ -205,7 +233,7 @@
       }
     ],
     "direction": "horizontal",
-    "width": 425.5
+    "width": 306.5
   },
   "right": {
     "id": "ffc60e9763cc384c",
@@ -296,34 +324,42 @@
       "bases:Create new base": false
     }
   },
-  "active": "a548f239090b7f77",
+  "active": "407cbf56cac36c50",
   "lastOpenFiles": [
-    "design/concepts/Accountability/Accountability.md",
-    "design/tools/api-extraction-from-spec.md",
-    "design/tools/api-extraction-from-code.md",
-    "context/design/concepts/api-generation.md/steps/API Specification.bf61f628.md",
-    "context/design/concepts/api-generation.md/steps/API Specification.aeda2eb3.md",
-    "context/design/concepts/api-generation.md/steps/API Specification.a109cfa6.md",
-    "context/design/concepts/api-generation.md/steps/API Specification.82138395.md",
-    "context/design/concepts/api-generation.md/steps/API Specification.1281899a.md",
-    "context/design/concepts/api-generation.md/steps/API Specification.994250fe.md",
-    "context/design/concepts/api-generation.md/steps/API Specification.780ef660.md",
-    "context/design/concepts/api-generation.md/steps/API Specification.9d14c655.md",
-    "context/design/concepts/api-generation.md/steps/API Specification.7a93cbd1.md",
-    "context/design/concepts/api-generation.md/steps/API Specification.3d949c27.md",
-    "context/design/concepts/api-generation.md/steps/API Specification.1a987145.md",
-    "context/design/concepts/api-generation.md/steps/API Specification.7aae78f9.md",
-    "context/design/concepts/api-generation.md/steps/_.3a59af90.md",
-    "context/design/concepts/api-generation.md/steps/response.f46a7651.md",
-    "context/design/concepts/api-generation.md/20251027_131533.24ddd12b.md",
-    "context/design/concepts/api-generation.md/20251027_131456.56170729.md",
-    "context/design/concepts/api-generation.md/steps/_.da164f86.md",
-    "context/design/concepts/api-generation.md/steps/_.db39d951.md",
+    "design/background/architecture.md",
+    "design/background/concept-design-overview.md",
+    "README.md",
+    "design/brainstorming/CreatingSyncs.md",
     "design/concepts/api-generation.md",
-    "context/design/concepts/api-generation.md/steps/response.57902f61.md",
-    "context/design/concepts/api-generation.md/steps/response.ec775589.md",
-    "context/design/concepts/api-generation.md/steps/implement.cff16850.md",
-    "context/design/concepts/api-generation.md/steps/prompt.b056f179.md",
+    "context/design/concepts/api-generation.md/20251104_151631.7617a424.md",
+    "context/design/concepts/api-generation.md/steps/API Specification.4c62bcb5.md",
+    "context/design/concepts/api-generation.md/steps/API Specification.9c10c7b0.md",
+    "context/design/concepts/api-generation.md/steps/API Specification.fa3c3708.md",
+    "context/design/concepts/api-generation.md/steps/API Specification.5eb9e17f.md",
+    "context/design/concepts/api-generation.md/steps/API Specification.de251f81.md",
+    "context/design/concepts/api-generation.md/20251104_151437.9c7db25c.md",
+    "context/design/concepts/api-generation.md/steps/response.e3bc5204.md",
+    "context/design/concepts/api-generation.md/steps/implement.ad5887c7.md",
+    "context/design/concepts/api-generation.md/steps/concept.43b9b577.md",
+    "context/design/concepts/api-generation.md/steps/concept.8d312dd9.md",
+    "context/design/concepts/api-generation.md/steps/file.bd0eb9e2.md",
+    "context/design/concepts/api-generation.md/steps/implement.a031f16c.md",
+    "context/design/concepts/api-generation.md/steps/concept.2f4d5527.md",
+    "context/design/concepts/api-generation.md/steps/concept.e3aa1c40.md",
+    "context/design/concepts/api-generation.md/steps/file.95a4630a.md",
+    "context/design/concepts/api-generation.md/steps/implement.6be084e6.md",
+    "context/design/concepts/api-generation.md/steps/Concept.93e3aba9.md",
+    "context/design/concepts/api-generation.md/steps/Concept.0a680ddd.md",
+    "context/design/concepts/api-generation.md/steps/response.8b55b936.md",
+    "context/design/concepts/api-generation.md/steps/Concept.65f111fa.md",
+    "design/concepts/CompetitionManager/CompetitionManagerTest3.png",
+    "design/concepts/CompetitionManager/CompetitionManagerTest2.png",
+    "design/concepts/CompetitionManager/CompetitionManagerTest1.png",
+    "src/concepts/Sessioning/SessioningConcept.ts",
+    "src/concepts/Sessioning",
+    "context/design/concepts/Sessioning/implementation.md/steps",
+    "context/design/concepts/Sessioning",
+    "design/concepts/Sessioning",
     "context/design/concepts/api-generation.md/steps",
     "media/relative_linking.png",
     "media/linking.png",
@@ -332,18 +368,10 @@
     "context/design/tools/api-extraction-from-spec.md/steps",
     "context/design/tools/api-extraction-from-code.md/steps",
     "context/design/tools",
-    "context/deno.json",
     "media/obsidian_settings.png",
-    "Untitled.base",
     "Untitled.canvas",
-    "src/concepts/PasswordAuth/PasswordAuth.test.ts",
-    "src/concepts/PasswordAuth/PasswordAuthConcept.ts",
-    "src/concepts/PasswordAuth",
     "design/concepts/SleepSchedule/SleepScheduleTest3.png",
     "design/concepts/SleepSchedule/SleepScheduleTest2.png",
-    "design/concepts/SleepSchedule/SleepScheduleTest1.png",
-    "design/concepts/CompetitionManager/CompetitionManagerTestLast.png",
-    "design/concepts/CompetitionManager/CompetitionManagerTest3.png",
-    "design/concepts/CompetitionManager/CompetitionManagerTest2.png"
+    "design/concepts/SleepSchedule/SleepScheduleTest1.png"
   ]
 }
