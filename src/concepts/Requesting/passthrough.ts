@@ -26,11 +26,19 @@
 
 export const inclusions: Record<string, string> = {
   // Feel free to delete these example inclusions
-  "/api/LikertSurvey/_getSurveyQuestions": "this is a public query",
-  "/api/LikertSurvey/_getSurveyResponses": "responses are public",
-  "/api/LikertSurvey/_getRespondentAnswers": "answers are visible",
-  "/api/LikertSurvey/submitResponse": "allow anyone to submit response",
-  "/api/LikertSurvey/updateResponse": "allow anyone to update their response",
+  // "/api/LikertSurvey/_getSurveyQuestions": "this is a public query",
+  // "/api/LikertSurvey/_getSurveyResponses": "responses are public",
+  // "/api/LikertSurvey/_getRespondentAnswers": "answers are visible",
+  // "/api/LikertSurvey/submitResponse": "allow anyone to submit response",
+  // "/api/LikertSurvey/updateResponse": "allow anyone to update their response",
+  "/api/PasswordAuth/_isRegistered": "public utility to check if username is registered",
+  "/api/PasswordAuth/_getUsername": "public lookup of username, low sensitivity",
+  "/api/PasswordAuth/_getUserByUsername": "public lookup, useful for admin/frontend lookup",
+  "/api/Sessioning/_getUser": "utility to get user from session, commonly needed by frontend",
+  "/api/CompetitionManager/_getReportedDates": "read-only schedule data",
+  "/api/SleepSchedule/_getSleepSlot": "simple query for user's own sleep slot",
+  "/api/Accountability/_getAllReports": "read-only report retrieval for UI",
+  "/api/Accountability/_getAccountabilitySeekersForUser": "allows discovering potential partners",
 };
 
 /**
@@ -45,6 +53,37 @@ export const inclusions: Record<string, string> = {
 
 export const exclusions: Array<string> = [
   // Feel free to delete these example exclusions
-  "/api/LikertSurvey/createSurvey",
-  "/api/LikertSurvey/addQuestion",
+  // "/api/LikertSurvey/createSurvey",
+  // "/api/LikertSurvey/addQuestion",
+    // PasswordAuth & Sessioning
+  "/api/PasswordAuth/register",
+  "/api/PasswordAuth/authenticate",
+  "/api/PasswordAuth/changePassword",
+  "/api/PasswordAuth/deactivateAccount",
+  "/api/Sessioning/create",
+  "/api/Sessioning/delete",
+
+  // SleepSchedule
+  "/api/SleepSchedule/addSleepSlot",
+  "/api/SleepSchedule/removeSleepSlot",
+  "/api/SleepSchedule/reportBedTime",
+  "/api/SleepSchedule/reportWakeUpTime",
+  "/api/SleepSchedule/_getAllSleepSlotsForUser",
+
+  // CompetitionManager
+  "/api/CompetitionManager/startCompetition",
+  "/api/CompetitionManager/recordStat",
+  "/api/CompetitionManager/endCompetition",
+  "/api/CompetitionManager/removeParticipant",
+  "/api/CompetitionManager/_getCompetitionsForUser",
+  "/api/CompetitionManager/_getLeaderboard",
+
+  // Accountability
+  "/api/Accountability/addPartner",
+  "/api/Accountability/removePartner",
+  "/api/Accountability/updatePreferences", // Handled by sync
+  "/api/Accountability/recordFailure",
+  "/api/Accountability/reportAllFailuresFromStartToEnd",
+  "/api/Accountability/updateReports",
+  "/api/Accountability/_getPartnerships",
 ];

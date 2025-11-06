@@ -1,90 +1,17 @@
-[@concept-design-overview](../background/concept-design-overview.md)
-
-[@concept-specifications](../background/concept-specifications.md)
-
-[@implementing-synchronizations](../background/implementing-synchronizations.md)
-
-[@architecture](../background/architecture.md)
-
-[@README](../../src/concepts/Requesting/README.md)
-
-[@api-generation](../concepts/api-generation.md)
-# Create Synchronizations
-
-I am creating an which allows users to set up sleep schedules, like their bedtimes and wakeup times each day along with a minute tolerance so if they go to sleep/wake up within x minutes before or after their bedtime/wake up time it is counted as a success otherwise it is considered a failure. Users can also set up competitions in which they're successes will add 1 to their scores, their failures will not increment or decrement their scores, and failure to report sleep events before the end of a competition will lead to decrementing their scores by 1 for each missed reported sleep event. Users also can add accountability partners, in which their failures will be reported to their accountability partners. 
-
-
-
-## Accountability:
-
-Specification:
-
-[@Accountability](../concepts/Accountability/Accountability.md)
-
-Code:
-
-[@Implementation](../concepts/Accountability/Implementation.md)
-
-
-## CompetitionManager:
-
-Specification:
-
-[@CompetitionManager](../concepts/CompetitionManager/CompetitionManager.md)
-
-Code:
-
-[@implementation](../concepts/CompetitionManager/implementation.md)
-
-## PasswordAuth
-
-Specification:
-
-[@PasswordAuth](../concepts/PasswordAuth/PasswordAuth.md)
-
-Code:
-
-[@implementation](../concepts/PasswordAuth/implementation.md)
-
-## Sessioning
-
-Specification:
-
-[@Sessioning](../concepts/Sessioning/Sessioning.md)
-
-Code:
-
-[@implementation](../concepts/Sessioning/implementation.md)
-
-## SleepSchedule
-
-Specification:
-
-[@SleepSchedule](../concepts/SleepSchedule/SleepSchedule.md)
-
-Code:
-
-[@implementation](../concepts/SleepSchedule/implementation.md)
-
-
-Here are some necessary syncs:
-
-## Sleep Report flow: 
-After calling reportBedTime() or reportWakeUpTime() from SleepSchedule it should also call recordStat() if that user is apart of any competitions, and if reportBedTime() or reportWakeUpTime() returned false it must call recordFailure() in the Accountability concept, and must call updateReports() in Accountability concept. 
-
-## User authentication:
-make sure that when users authenticate in PasswordAuth, a session must be created using create in Sessioning that will be used until the user logs out. 
-
-
-Great, now create the complete set of synchronizations that generates the app. For requests that are similar to passthrough routes, keep the path in the form of `/{Concept}/{action or query}`. Start by defining the synchronization specifications, then create the implementation.
+---
+timestamp: 'Tue Nov 04 2025 17:05:03 GMT-0500 (Eastern Standard Time)'
+parent: '[[..\20251104_170503.373f2e80.md]]'
+content_id: a0df4c2ababf000da72cd6d11f1c2466549a8e3b4c40ab6121852f85d86e93a2
+---
 
 # response:
 
 Here are the complete synchronizations that generate the application based on your concepts and requirements.
 
 The synchronizations are divided into two parts:
-1.  **Synchronization Specifications**: A high-level, declarative overview of each rule in a `.sync`-like format.
-2.  **TypeScript Implementation**: The complete, executable code that implements these specifications.
+
+1. **Synchronization Specifications**: A high-level, declarative overview of each rule in a `.sync`-like format.
+2. **TypeScript Implementation**: The complete, executable code that implements these specifications.
 
 ***
 
