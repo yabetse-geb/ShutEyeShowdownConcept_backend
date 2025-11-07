@@ -266,6 +266,75 @@ export default class CompetitionManagerConcept {
   }
 
   /**
+   * @action decrementScore
+   * @requires:
+   *   - u is a part of at least one active Competition
+   *   - `dateStr` is a valid date string in YYYY-MM-DD format, parseable into a `Date`.
+   *   - `eventType` is either `SleepEventType.BEDTIME` or `SleepEventType.WAKETIME`.
+   * @effects:
+   *   - Parses `dateStr` into a `Date` object normalized to start of day: `eventDate`.
+   *   - For all active competitions that u is part of where the eventDate is within the competition's date range:
+   *     - Decrements the appropriate score (wakeUpScore for WAKETIME, bedTimeScore for BEDTIME) by 1
+   */
+  async decrementScore(
+    { u, dateStr, eventType }: {
+      u: User;
+      dateStr: string;
+      eventType: SleepEventType;
+    },
+  ): Promise<Empty | { error: string }> {
+    // 1. Validate inputs
+    const eventDate = parseDateString(dateStr);
+
+    if (!eventDate) {
+      return { error: "Invalid date string provided for event." };
+    }
+
+    if (
+      eventType !== SleepEventType.BEDTIME && eventType !== SleepEventType.WAKETIME
+    ) {
+      return { error: "Invalid sleep event type." };
+    }
+
+    // Find all active competitions `u` is part of, and the eventDate is within the competition's range
+    const activeCompetitions = await this.competitions.find({
+      active: true,
+      participants: u,
+      startDate: { $lte: eventDate },
+      endDate: { $gte: eventDate },
+    }).toArray();
+
+    if (activeCompetitions.length === 0) {
+      return {
+        error:
+          "User is not part of any active competition for the specified date, or the event date is outside the competition range.",
+      };
+    }
+
+    // 2. Decrement scores for matching competitions
+    const scoreFieldName = eventType === SleepEventType.BEDTIME
+      ? "bedTimeScore"
+      : "wakeUpScore";
+
+    const updatePromises = activeCompetitions.map(async (comp) => {
+      const scoreDoc = await this.scores.findOne({ u, competition: comp._id });
+      if (!scoreDoc) {
+        return; // Skip if score document doesn't exist
+      }
+
+      // Decrement score by 1
+      await this.scores.updateOne(
+        { u, competition: comp._id },
+        { $inc: { [scoreFieldName]: -1 } },
+      );
+    });
+
+    await Promise.all(updatePromises);
+
+    return {};
+  }
+
+  /**
    * @action endCompetition
    * @requires:
    *   - current date is greater than or equal to the endDate of Competition c

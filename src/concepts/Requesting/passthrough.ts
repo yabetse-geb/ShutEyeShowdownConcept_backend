@@ -73,6 +73,7 @@ export const exclusions: Array<string> = [
   // CompetitionManager
   "/api/CompetitionManager/startCompetition",
   "/api/CompetitionManager/recordStat",
+  "/api/CompetitionManager/decrementScore",
   "/api/CompetitionManager/endCompetition",
   "/api/CompetitionManager/removeParticipant",
   "/api/CompetitionManager/_getCompetitionsForUser",

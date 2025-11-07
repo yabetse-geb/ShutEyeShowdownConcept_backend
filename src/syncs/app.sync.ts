@@ -90,16 +90,28 @@ export const LogoutErrorResponse: Sync = ({ request, error }) => ({
 // 2. Core Logic: Reacting to Sleep Reports
 // ============================================================================
 
-// When a user reports bedtime, update their competition stats.
-export const UpdateCompetitionStatOnBedTime: Sync = ({ u, dateStr, bedTimeSuccess }) => ({
-  when: actions([SleepSchedule.reportBedTime, { u, dateStr }, { bedTimeSuccess }]),
-  then: actions([CompetitionManager.recordStat, { u, dateStr, eventType: "BEDTIME", success: bedTimeSuccess }]),
+// When reportBedTime succeeds, call recordStat
+export const RecordStatOnBedTimeSuccess: Sync = ({ u, dateStr }) => ({
+  when: actions([SleepSchedule.reportBedTime, { u, dateStr }, { bedTimeSuccess: true }]),
+  then: actions([CompetitionManager.recordStat, { u, dateStr, eventType: "BEDTIME", success: true }]),
 });
 
-// When a user reports wake-up time, update their competition stats.
-export const UpdateCompetitionStatOnWakeTime: Sync = ({ u, dateStr, wakeUpSuccess }) => ({
-  when: actions([SleepSchedule.reportWakeUpTime, { u, dateStr }, { wakeUpSuccess }]),
-  then: actions([CompetitionManager.recordStat, { u, dateStr, eventType: "WAKETIME", success: wakeUpSuccess }]),
+// When reportBedTime fails, call recordStat (with false)
+export const RecordStatOnBedTimeFailure: Sync = ({ u, dateStr }) => ({
+  when: actions([SleepSchedule.reportBedTime, { u, dateStr }, { bedTimeSuccess: false }]),
+  then: actions([CompetitionManager.recordStat, { u, dateStr, eventType: "BEDTIME", success: false }, {}]),
+});
+
+// When reportWakeUpTime succeeds, call recordStat
+export const RecordStatOnWakeUpSuccess: Sync = ({ u, dateStr }) => ({
+  when: actions([SleepSchedule.reportWakeUpTime, { u, dateStr }, { wakeUpSuccess: true }]),
+  then: actions([CompetitionManager.recordStat, { u, dateStr, eventType: "WAKETIME", success: true }]),
+});
+
+// When reportWakeUpTime fails, call recordStat (with false)
+export const RecordStatOnWakeUpFailure: Sync = ({ u, dateStr }) => ({
+  when: actions([SleepSchedule.reportWakeUpTime, { u, dateStr }, { wakeUpSuccess: false }]),
+  then: actions([CompetitionManager.recordStat, { u, dateStr, eventType: "WAKETIME", success: false }, {}]),
 });
 
 // When a user FAILS a bedtime report, record it for accountability (only if user has partnerships).
@@ -225,6 +237,46 @@ export const StartCompetitionErrorResponse: Sync = ({ request, error }) => ({
   when: actions(
     [Requesting.request, { path: "/CompetitionManager/startCompetition" }, { request }],
     [CompetitionManager.startCompetition, {}, { error }],
+  ),
+  then: actions([Requesting.respond, { request, error }]),
+});
+
+export const DecrementScoreRequest: Sync = ({ request, session, user, dateStr, eventType }) => ({
+  when: actions([Requesting.request, { path: "/CompetitionManager/decrementScore", session, dateStr, eventType }, { request }]),
+  where: async (frames: Frames) => frames.query(Sessioning._getUser, { session }, { user }),
+  then: actions([CompetitionManager.decrementScore, { u: user, dateStr, eventType }]),
+});
+export const DecrementScoreResponse: Sync = ({ request }) => ({
+  when: actions(
+    [Requesting.request, { path: "/CompetitionManager/decrementScore" }, { request }],
+    [CompetitionManager.decrementScore, {}, {}],
+  ),
+  then: actions([Requesting.respond, { request, success: true }]),
+});
+export const DecrementScoreErrorResponse: Sync = ({ request, error }) => ({
+  when: actions(
+    [Requesting.request, { path: "/CompetitionManager/decrementScore" }, { request }],
+    [CompetitionManager.decrementScore, {}, { error }],
+  ),
+  then: actions([Requesting.respond, { request, error }]),
+});
+
+export const EndCompetitionRequest: Sync = ({ request, session, user, competitionId }) => ({
+  when: actions([Requesting.request, { path: "/CompetitionManager/endCompetition", session, competitionId }, { request }]),
+  where: async (frames: Frames) => frames.query(Sessioning._getUser, { session }, { user }),
+  then: actions([CompetitionManager.endCompetition, { competitionId }]),
+});
+export const EndCompetitionResponse: Sync = ({ request, winners }) => ({
+  when: actions(
+    [Requesting.request, { path: "/CompetitionManager/endCompetition" }, { request }],
+    [CompetitionManager.endCompetition, {}, { winners }],
+  ),
+  then: actions([Requesting.respond, { request, winners }]),
+});
+export const EndCompetitionErrorResponse: Sync = ({ request, error }) => ({
+  when: actions(
+    [Requesting.request, { path: "/CompetitionManager/endCompetition" }, { request }],
+    [CompetitionManager.endCompetition, {}, { error }],
   ),
   then: actions([Requesting.respond, { request, error }]),
 });
@@ -401,10 +453,10 @@ export const GetMyPartnershipsRequest: Sync = ({ request, session, user, partner
     // Use collectAs to collect all partnerships into a single array
     const resultFrames = await frames.query(Accountability._getPartnerships, { user }, { partnership });
     console.log("[GetMyPartnershipsRequest] Result frames:", resultFrames);
-    if (resultFrames.length > 0) {
+     if (resultFrames.length > 0) {
       const collected = resultFrames.collectAs([partnership], partnerships);
       return new Frames({ ...originalFrame, ...frames[0], ...collected[0] });
-    }
+      }
     // No partnerships found - return empty array
     return new Frames({ ...originalFrame, ...frames[0], [partnerships]: [] });
   },
