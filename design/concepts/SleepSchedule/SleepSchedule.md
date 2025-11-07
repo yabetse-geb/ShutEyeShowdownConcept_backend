@@ -42,7 +42,7 @@
         *   **effects**:
             *   Parses `dateStr` into a `Date` object: `date`.
             *   Removes the `SleepSlot` for `u` on `date`.
-    *   `reportBedTime (u: User, reportedTimeStr: String, dateStr: String): Boolean`:
+    -   reportBedTime (u: User, reportedTimeStr: String, dateStr: String): Boolean:
         *   **requires**:
             *   `reportedTimeStr` and `dateStr` must be valid strings parseable into `Time` and `Date` objects respectively.
             *   A `SleepSlot` with `user u` and the parsed `date` exists.
@@ -52,10 +52,15 @@
             *   Sets `bedTimeSuccess = abs(reportedTime - bedTime`)<=toleranceMinutes for the `SleepSlot` with (`u`, `date`).
             *   Returns `bedTimeSuccess`.
 
-    *   `reportWakeUpTime (u: User, reportedTimeStr: String, dateStr: String): Boolean`:
+    -   reportWakeUpTime (u: User, reportedTimeStr: String, dateStr: String): Boolean:
         *   **requires**:
             * `reportedTimeStr` and `dateStr` must be valid strings parseable into `Time` and `Date` objects respectively.
             *   A `SleepSlot` with `user u` and the parsed `date` exists.
         *   **effects**:
             *   Sets `wakeUpSuccess = abs(reportedTime - wakeUpTime`)<=toleranceMinutes
             *   Returns `wakeUpSuccess`.
+- **qureies**:
+    -   _getSleepSlot (u: User, dateStr: String): SleepSlot[]:
+        *   **effects**: returns Sleep slots for user for that specific date which is in the form YYYY-MM-DD
+    -   _getAllSleepSlot (u: User): SleepSlot[]:
+        *   **effects**: returns all Sleep slots for user

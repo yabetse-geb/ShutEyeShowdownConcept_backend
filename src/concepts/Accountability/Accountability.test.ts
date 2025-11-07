@@ -57,7 +57,7 @@ const userDavid = "user:David" as ID;
 
 
 
-Deno.test("1. Operational Principle: Establish, Configure, Record, Report Daily", async () => {
+Deno.test("1. Operational Principle: Establish, Configure, Record, Report Immediate", async () => {
   const [db, client] = await testDb();
   const concept:AccountabilityConcept = new AccountabilityConcept(db);
   try{
@@ -84,12 +84,7 @@ Deno.test("1. Operational Principle: Establish, Configure, Record, Report Daily"
 
     // Actions for setup
     const currentTestDate = BASE_DATE;
-    const yesterdayDate = addDays(currentTestDate, -1);
     const formattedCurrentDate = formatDate(currentTestDate);
-    const formattedYesterdayDate = formatDate(yesterdayDate);
-    // Derive a UTC-midnight Date from the formatted string to mirror concept parsing
-    const partsY = formattedYesterdayDate.split("-").map(Number);
-    const yesterdayDateUTC = new Date(Date.UTC(partsY[0], partsY[1] - 1, partsY[2], 0, 0, 0, 0));
 
     // Action: addPartner
     console.log(`Action: addPartner(${userAlice}, ${userBob})`);
@@ -131,13 +126,13 @@ Deno.test("1. Operational Principle: Establish, Configure, Record, Report Daily"
       "Notify types should be updated",
     );
 
-    // Action: recordFailure
+    // Action: recordFailure - record failure on current date for Immediate reporting
     console.log(
-      `Action: recordFailure(${userAlice}, ${formattedYesterdayDate}, BEDTIME)`,
+      `Action: recordFailure(${userAlice}, ${formattedCurrentDate}, BEDTIME)`,
     );
     const recordFailureResult = await concept.recordFailure({
       user: userAlice,
-      date: formattedYesterdayDate,
+      date: formattedCurrentDate,
       failureType: SleepEventType.BEDTIME,
     });
     console.log("Output:", recordFailureResult);
@@ -146,12 +141,12 @@ Deno.test("1. Operational Principle: Establish, Configure, Record, Report Daily"
     // Verify the failure was recorded on the expected calendar day (UTC-based)
     const insertedFailure = await concept.adherenceFailures.findOne({ failingUser: userAlice });
     assertEquals(insertedFailure !== null, true, "A failure should exist for the user");
-    assertEquals(formatDate(insertedFailure!.date), formattedYesterdayDate, "Failure should be stored on yesterday's date");
+    assertEquals(formatDate(insertedFailure!.date), formattedCurrentDate, "Failure should be stored on current date");
     assertEquals(insertedFailure!.reported, false, "Failure should initially be unreported");
 
-    // Action: updateReports (triggers daily report appended to Reports)
+    // Action: updateReports (triggers immediate report appended to Reports)
     console.log(
-      `Action: generateNotificationMessage(${userAlice}, ${formattedCurrentDate}) - Day 0`,
+      `Action: updateReports(${userAlice}, ${formattedCurrentDate}) - Immediate`,
     );
     const generateReportResult = await concept.updateReports({
       user: userAlice,
@@ -164,7 +159,7 @@ Deno.test("1. Operational Principle: Establish, Configure, Record, Report Daily"
     const expectedReportedDate = formatDate(storedFailure.date);
     const reportDoc1 = await concept.reports.findOne({ user: userBob, accountabilitySeeker: userAlice });
     const lastReport1 = reportDoc1?.allReports.at(-1) ?? "";
-    assertEquals(lastReport1.includes("Daily Report"), true, "Should append a daily report for Bob");
+    assertEquals(lastReport1.includes("Alert"), true, "Should append an alert for Bob");
     assertEquals(lastReport1.includes(`Date: ${expectedReportedDate}`), true, "Report should include failure date");
 
     // Verify effects: failure reported, lastReportDate updated
@@ -178,16 +173,16 @@ Deno.test("1. Operational Principle: Establish, Configure, Record, Report Daily"
       "lastReportDate should be updated to current date",
     );
 
-    // Try updating reports again for the same day (no new entry expected for daily)
+    // Try updating reports again for the same day (should not add new report if no new failures)
     console.log(
-      `Action: generateNotificationMessage(${userAlice}, ${formattedCurrentDate}) - Day 0 (again)`,
+      `Action: updateReports(${userAlice}, ${formattedCurrentDate}) - Again (no new failures)`,
     );
     const prevLen = (await concept.reports.findOne({ user: userBob, accountabilitySeeker: userAlice }))?.allReports.length ?? 0;
     const generateReportAgainResult = await concept.updateReports({ user: userAlice, date: formattedCurrentDate });
     console.log("Output:", generateReportAgainResult);
     assertEquals(generateReportAgainResult, {}, "updateReports should succeed");
     const newLen = (await concept.reports.findOne({ user: userBob, accountabilitySeeker: userAlice }))?.allReports.length ?? 0;
-    assertEquals(newLen, prevLen, "No additional report should be appended for same-day daily call");
+    assertEquals(newLen, prevLen, "No additional report should be appended when no new failures exist");
   } finally {
     await client.close();
   }
@@ -269,7 +264,7 @@ Deno.test("2. Error Handling and Basic Action edge cases", async () => {
   }
 });
 
-Deno.test("3. Frequency Transition (Immediate → Daily → Weekly) with reporting", async () => {
+Deno.test("3. Immediate Reporting Only", async () => {
   const [db, client] = await testDb();
   const concept:AccountabilityConcept = new AccountabilityConcept(db);
   try{
@@ -277,14 +272,23 @@ Deno.test("3. Frequency Transition (Immediate → Daily → Weekly) with reporti
     const getPartnership = async (user: ID, partner: ID) =>
       await concept.partnerships.findOne({ user, partner });
     // Helper to retrieve failures for verification
-    const getFailures = async (failingUser: ID, startDate: Date, endDate: Date) =>
-      await concept.adherenceFailures
-        .find({ failingUser, date: { $gte: startDate, $lte: endDate } })
+    const getFailures = async (failingUser: ID, startDate: Date, endDate: Date) => {
+      const dayStartFromStr = (dateStr: string) => {
+        const parts = dateStr.split("-").map(Number);
+        const [y, m, d] = parts;
+        return new Date(Date.UTC(y, m - 1, d, 0, 0, 0, 0));
+      };
+      const start = dayStartFromStr(formatDate(startDate));
+      const endStart = dayStartFromStr(formatDate(endDate));
+      const endExclusive = new Date(endStart.getTime() + 24 * 60 * 60 * 1000);
+      return await concept.adherenceFailures
+        .find({ failingUser, date: { $gte: start, $lt: endExclusive } })
         .toArray();
-    console.log("\n--- Frequency Transition Test ---");
+    };
+    console.log("\n--- Immediate Reporting Test ---");
     let currentDay = BASE_DATE; // Start fresh for this scenario
 
-    // Day 0: Add partner, set IMMEDIATE
+    // Day 0: Add partner, record failure on same day, report immediately
     console.log(
       `\n--- Day 0: ${formatDate(currentDay)} - Immediate Report ---`,
     );
@@ -308,15 +312,15 @@ Deno.test("3. Frequency Transition (Immediate → Daily → Weekly) with reporti
     console.log("Output:", reportResult);
     assertEquals(reportResult, {}, "Day 0: updateReports should succeed");
     let reportDoc0 = await concept.reports.findOne({ user: userCharlie, accountabilitySeeker: userAlice });
-    const lastWeekly0 = reportDoc0?.allReports.at(-1) ?? "";
-    assertEquals(lastWeekly0.includes("Immediate Alert"), true, "Day 0: Immediate report appended");
+    const lastReport0 = reportDoc0?.allReports.at(-1) ?? "";
+    assertEquals(lastReport0.includes("Alert"), true, "Day 0: Alert report appended");
     let failuresDay0 = await getFailures(userAlice, currentDay, currentDay);
     // If range misses due to tz, fetch latest failure and assert it is reported
     if (!failuresDay0[0]) {
       const latestFailure = await concept.adherenceFailures.findOne({ failingUser: userAlice });
       assertEquals(latestFailure?.reported, true, "Day 0 failure should be reported");
     } else {
-      assertEquals(failuresDay0[0].reported, true, "Day 0 failure should be reported");
+    assertEquals(failuresDay0[0].reported, true, "Day 0 failure should be reported");
     }
     let partnership = await getPartnership(userAlice, userCharlie);
     assertEquals(
@@ -325,7 +329,7 @@ Deno.test("3. Frequency Transition (Immediate → Daily → Weekly) with reporti
       "Day 0 lastReportDate updated",
     );
 
-    // Day 0 (again): No repeat for Immediate
+    // Day 0 (again): No repeat if no new failures
     console.log(
       `Action: updateReports(${userAlice}, ${formatDate(currentDay)}) (again)`,
     );
@@ -337,38 +341,48 @@ Deno.test("3. Frequency Transition (Immediate → Daily → Weekly) with reporti
     console.log("Output:", reportResult);
     assertEquals(reportResult, {}, "Day 0: updateReports should succeed");
     const newLen0 = (await concept.reports.findOne({ user: userCharlie, accountabilitySeeker: userAlice }))?.allReports.length ?? 0;
-    assertEquals(newLen0, prevLen0, "Day 0: No repeat immediate report appended");
+    assertEquals(newLen0, prevLen0, "Day 0: No repeat report appended when no new failures");
 
-    // Day 1: Update to DAILY, record failure
+    // Day 1: Record failure and report immediately
     currentDay = addDays(currentDay, 1);
     console.log(
-      `\n--- Day 1: ${formatDate(currentDay)} - Daily Transition ---`,
+      `\n--- Day 1: ${formatDate(currentDay)} - New Failure and Immediate Report ---`,
     );
-    await concept.updatePreferences({
-      user: userAlice,
-      partner: userCharlie,
-      notifyTypes: [SleepEventType.BEDTIME],
-    });
     await concept.recordFailure({
       user: userAlice,
       date: formatDate(currentDay),
       failureType: SleepEventType.BEDTIME,
-    }); // Failure on Day 1
+    });
 
-    // Report on Day 1 (should be empty as daily reports yesterday)
     console.log(`Action: updateReports(${userAlice}, ${formatDate(currentDay)})`);
     reportResult = await concept.updateReports({
       user: userAlice,
       date: formatDate(currentDay),
     });
     console.log("Output:", reportResult);
-    assertEquals(reportResult, {}, "Day 1: updateReports should succeed (no daily output appended)");
-    const lenBeforeDay2 = (await concept.reports.findOne({ user: userCharlie, accountabilitySeeker: userAlice }))?.allReports.length ?? 0;
+    assertEquals(reportResult, {}, "Day 1: updateReports should succeed");
+    const reportDocDay1 = await concept.reports.findOne({ user: userCharlie, accountabilitySeeker: userAlice });
+    const lastReport1 = reportDocDay1?.allReports.at(-1) ?? "";
+    assertEquals(lastReport1.includes("Alert"), true, "Day 1: Alert report appended");
+    assertEquals(lastReport1.includes(`Date: ${formatDate(currentDay)}`), true, "Day 1: Includes Day 1 failure");
+    let failuresDay1 = await getFailures(userAlice, currentDay, currentDay);
+    if (failuresDay1.length > 0) {
+    assertEquals(failuresDay1[0].reported, true, "Day 1 failure should be reported");
+    } else {
+      const latestFailure = await concept.adherenceFailures.findOne({ failingUser: userAlice, date: currentDay });
+      assertEquals(latestFailure?.reported, true, "Day 1 failure should be reported");
+    }
+    partnership = await getPartnership(userAlice, userCharlie);
+    assertEquals(
+      formatDate(partnership?.lastReportDate!),
+      formatDate(currentDay),
+      "Day 1 lastReportDate updated",
+    );
 
-    // Day 2: Daily report for Day 1's failure
+    // Day 2: No failure recorded, no report expected
     currentDay = addDays(currentDay, 1);
     console.log(
-      `\n--- Day 2: ${formatDate(currentDay)} - Daily Report for Day 1 ---`,
+      `\n--- Day 2: ${formatDate(currentDay)} - No Failure, No Report Expected ---`,
     );
     console.log(`Action: updateReports(${userAlice}, ${formatDate(currentDay)})`);
     reportResult = await concept.updateReports({
@@ -377,97 +391,9 @@ Deno.test("3. Frequency Transition (Immediate → Daily → Weekly) with reporti
     });
     console.log("Output:", reportResult);
     assertEquals(reportResult, {}, "Day 2: updateReports should succeed");
-    const reportDocDay2 = await concept.reports.findOne({ user: userCharlie, accountabilitySeeker: userAlice });
-    assertEquals((reportDocDay2?.allReports.length ?? 0) > lenBeforeDay2, true, "Day 2: A new daily report should be appended");
-    const lastDaily2 = reportDocDay2?.allReports.at(-1) ?? "";
-    assertEquals(lastDaily2.includes("Daily Report"), true, "Day 2: Daily report marker present");
-    assertEquals(lastDaily2.includes(`Date: ${formatDate(addDays(currentDay, -1))}`), true, "Day 2: Includes Day 1 failure");
-    let failuresDay1 = await getFailures(
-      userAlice,
-      addDays(currentDay, -1),
-      addDays(currentDay, -1),
-    );
-    assertEquals(failuresDay1[0].reported, true, "Day 1 failure should be reported");
-    partnership = await getPartnership(userAlice, userCharlie);
-    assertEquals(
-      formatDate(partnership?.lastReportDate!),
-      formatDate(currentDay),
-      "Day 2 lastReportDate updated",
-    );
-
-    // Day 3-8: Record failures for weekly testing, fast forward
-    console.log("\n--- Days 3-8: Record failures for Weekly Report ---");
-    for (let i = 0; i < 6; i++) { // Record failures for Day 3, 4, 5, 6, 7, 8
-      currentDay = addDays(currentDay, 1);
-      await concept.recordFailure({
-        user: userAlice,
-        date: formatDate(currentDay),
-        failureType: SleepEventType.BEDTIME,
-      });
-      console.log(`Recorded failure for Alice on ${formatDate(currentDay)}`);
-    }
-    // Last record was on Day 8 (BASE_DATE + 8 days). Last report was on Day 2.
-    // Now, update to WEEKLY
-    await concept.updatePreferences({
-      user: userAlice,
-      partner: userCharlie,
-      notifyTypes: [SleepEventType.BEDTIME],
-    });
-    console.log(
-      `Partnership updated to Weekly reporting. lastReportDate: ${
-        formatDate(partnership?.lastReportDate!)
-      }`,
-    );
-
-    // Day 9: Call generateNotificationMessage. Should trigger weekly report.
-    // (Day 9 - Day 2 = 7 days difference).
-    currentDay = addDays(currentDay, 1); // This is Day 9
-    console.log(
-      `\n--- Day 9: ${formatDate(currentDay)} - Weekly Report Trigger ---`,
-    );
-    console.log(`Action: updateReports(${userAlice}, ${formatDate(currentDay)})`);
-    reportResult = await concept.updateReports({
-      user: userAlice,
-      date: formatDate(currentDay),
-    });
-    console.log("Output:", reportResult);
-    assertEquals(reportResult, {}, "Day 9: updateReports should succeed");
-    const weeklyDoc = await concept.reports.findOne({ user: userCharlie, accountabilitySeeker: userAlice });
-    const lastWeekly = weeklyDoc?.allReports.at(-1) ?? "";
-    assertEquals(lastWeekly.includes("Weekly Report"), true, "Day 9: Weekly report appended");
-
-    // Verify failures from Day 3-9 are included and marked reported
-    const sevenDaysAgoForDay9 = addDays(currentDay, -7); // Day 2
-    const failuresReportedWeekly = await getFailures(
-      userAlice,
-      sevenDaysAgoForDay9,
-      currentDay,
-    );
-    const unreportedFailures = failuresReportedWeekly.filter((f) => !f.reported);
-    assertEquals(unreportedFailures.length, 0, "All failures from Day 3-9 should be reported");
-
-    partnership = await getPartnership(userAlice, userCharlie);
-    assertEquals(
-      formatDate(partnership?.lastReportDate!),
-      formatDate(currentDay),
-      "Day 9 lastReportDate updated for weekly",
-    );
-
-    // Day 10: No new failures, no new report expected
-    currentDay = addDays(currentDay, 1); // This is Day 10
-    console.log(
-      `\n--- Day 10: ${formatDate(currentDay)} - No new Weekly Report Expected ---`,
-    );
-    console.log(`Action: updateReports(${userAlice}, ${formatDate(currentDay)})`);
-    reportResult = await concept.updateReports({
-      user: userAlice,
-      date: formatDate(currentDay),
-    });
-    console.log("Output:", reportResult);
-    assertEquals(reportResult, {}, "Day 10: updateReports should succeed");
-    const lenAfterDay9 = (await concept.reports.findOne({ user: userCharlie, accountabilitySeeker: userAlice }))?.allReports.length ?? 0;
-    const lenAfterDay10 = (await concept.reports.findOne({ user: userCharlie, accountabilitySeeker: userAlice }))?.allReports.length ?? 0;
-    assertEquals(lenAfterDay10, lenAfterDay9, "Day 10: No new weekly report should be appended");
+    const lenAfterDay1 = (await concept.reports.findOne({ user: userCharlie, accountabilitySeeker: userAlice }))?.allReports.length ?? 0;
+    const lenAfterDay2 = (await concept.reports.findOne({ user: userCharlie, accountabilitySeeker: userAlice }))?.allReports.length ?? 0;
+    assertEquals(lenAfterDay2, lenAfterDay1, "Day 2: No new report should be appended when no failures");
   } finally {
     await client.close();
   }
@@ -578,7 +504,7 @@ Deno.test("4. Empty vs. Non-Empty Reporting (reportAllFailuresFromStartToEnd)", 
   }
 });
 
-Deno.test("5. Weekly Reporting Skipping Period", async () => {
+Deno.test("5. Immediate Reporting Multiple Days", async () => {
   const [db, client] = await testDb();
   const concept:AccountabilityConcept = new AccountabilityConcept(db);
   try{
@@ -586,19 +512,28 @@ Deno.test("5. Weekly Reporting Skipping Period", async () => {
     const getPartnership = async (user: ID, partner: ID) =>
       await concept.partnerships.findOne({ user, partner });
     // Helper to retrieve failures for verification
-    const getFailures = async (failingUser: ID, startDate: Date, endDate: Date) =>
-      await concept.adherenceFailures
-        .find({ failingUser, date: { $gte: startDate, $lte: endDate } })
+    const getFailures = async (failingUser: ID, startDate: Date, endDate: Date) => {
+      const dayStartFromStr = (dateStr: string) => {
+        const parts = dateStr.split("-").map(Number);
+        const [y, m, d] = parts;
+        return new Date(Date.UTC(y, m - 1, d, 0, 0, 0, 0));
+      };
+      const start = dayStartFromStr(formatDate(startDate));
+      const endStart = dayStartFromStr(formatDate(endDate));
+      const endExclusive = new Date(endStart.getTime() + 24 * 60 * 60 * 1000);
+      return await concept.adherenceFailures
+        .find({ failingUser, date: { $gte: start, $lt: endExclusive } })
         .toArray();
-    console.log("\n--- Weekly Reporting Skipping Period Test ---");
+    };
+    console.log("\n--- Immediate Reporting Multiple Days Test ---");
 
     let currentDay = BASE_DATE; // Reset for this scenario
 
-    // Setup partnership for Charlie and David, Weekly reports
+    // Setup partnership for Charlie and David
     console.log(`Action: addPartner(${userCharlie}, ${userDavid})`);
     await concept.addPartner({ user: userCharlie, partner: userDavid });
     console.log(
-      `Action: updatePreferences(${userCharlie}, ${userDavid}, [BEDTIME, WAKETIME], WEEKLY)`,
+      `Action: updatePreferences(${userCharlie}, ${userDavid}, [BEDTIME, WAKETIME])`,
     );
     await concept.updatePreferences({
       user: userCharlie,
@@ -607,24 +542,14 @@ Deno.test("5. Weekly Reporting Skipping Period", async () => {
     });
     let partnership = await getPartnership(userCharlie, userDavid);
 
-    // Record failures for 10 consecutive days (Day 0 to Day 9)
-    console.log("\nRecording 10 failures for Charlie (Day 0 - Day 9)...");
+    // Day 0: Record failure and report immediately
     const firstFailureDate = currentDay; // Day 0
-    for (let i = 0; i < 10; i++) {
-      const date = addDays(firstFailureDate, i);
-      await concept.recordFailure({
-        user: userCharlie,
-        date: formatDate(date),
-        failureType: SleepEventType.BEDTIME,
-      });
-      console.log(`Recorded failure on ${formatDate(date)}`);
-    }
-
-    // Day 6: Generate weekly report (should cover Day 0 - Day 6)
-    currentDay = addDays(firstFailureDate, 6); // This is Day 6
-    console.log(
-      `\n--- Day 6: ${formatDate(currentDay)} - First Weekly Report ---`,
-    );
+    console.log(`\n--- Day 0: ${formatDate(currentDay)} - Record Failure and Report ---`);
+    await concept.recordFailure({
+      user: userCharlie,
+      date: formatDate(currentDay),
+      failureType: SleepEventType.BEDTIME,
+    });
     console.log(
       `Action: updateReports(${userCharlie}, ${formatDate(currentDay)})`,
     );
@@ -633,44 +558,36 @@ Deno.test("5. Weekly Reporting Skipping Period", async () => {
       date: formatDate(currentDay),
     });
     console.log("Output:", reportResult);
-    assertEquals(reportResult, {}, "Day 6: updateReports should succeed");
-    const reportDocW1 = await concept.reports.findOne({ user: userDavid, accountabilitySeeker: userCharlie });
-    const weeklyMsg1 = reportDocW1?.allReports.at(-1) ?? "";
-    assertEquals(weeklyMsg1.includes("Weekly Report"), true, "Day 6: Weekly report appended");
+    assertEquals(reportResult, {}, "Day 0: updateReports should succeed");
+    const reportDoc0 = await concept.reports.findOne({ user: userDavid, accountabilitySeeker: userCharlie });
+    const msg0 = reportDoc0?.allReports.at(-1) ?? "";
+    assertEquals(msg0.includes("Alert"), true, "Day 0: Alert report appended");
 
-    // Verify failures Day 0-6 are reported
-    let failuresFirstWeek = await getFailures(userCharlie, firstFailureDate, currentDay);
-    if (failuresFirstWeek.length === 0) {
-      // Fallback: fetch all and ensure none in the covered range remain unreported
-      const allCharlies = await concept.adherenceFailures.find({ failingUser: userCharlie }).toArray();
-      const covered = allCharlies.filter(f => f.date >= new Date(firstFailureDate.getFullYear(), firstFailureDate.getMonth(), firstFailureDate.getDate()) && f.date <= new Date(currentDay.getFullYear(), currentDay.getMonth(), currentDay.getDate()));
-      const unreportedFirstWeek = covered.filter((f) => !f.reported);
-      assertEquals(unreportedFirstWeek.length, 0, "All failures from Day 0-6 should be reported");
+    // Verify failure Day 0 is reported
+    let failuresDay0 = await getFailures(userCharlie, firstFailureDate, currentDay);
+    if (failuresDay0.length > 0) {
+      assertEquals(failuresDay0[0].reported, true, "Day 0 failure should be reported");
     } else {
-      let unreportedFirstWeek = failuresFirstWeek.filter((f) => !f.reported);
-      assertEquals(unreportedFirstWeek.length, 0, "All failures from Day 0-6 should be reported");
+      // Fallback: fetch by failingUser and check if any are reported
+      const allFailures = await concept.adherenceFailures.find({ failingUser: userCharlie }).toArray();
+      const day0Failure = allFailures.find(f => formatDate(f.date) === formatDate(currentDay));
+      assertEquals(day0Failure?.reported, true, "Day 0 failure should be reported");
     }
     partnership = await getPartnership(userCharlie, userDavid);
     assertEquals(
       formatDate(partnership?.lastReportDate!),
       formatDate(currentDay),
-      "lastReportDate updated to Day 6",
+      "lastReportDate updated to Day 0",
     );
 
-    // Day 9: Generate weekly report again (should cover Day 7 - Day 9, excluding Day 0-6)
-    // The previous report was on Day 6. Current Day is Day 9.
-    // 9 - 6 = 3 days, which is less than 7 days, so no report should be generated based on the logic.
-    // Let's adjust the expectation: The action logic for Weekly is:
-    // If 7 or more days have passed since lastReportDate.
-    // LastReportDate is Day 6. If we call on Day 9, 3 days have passed, so it should NOT report.
-    // Let's advance to Day 13 to ensure a report (9 + 7 = 16. So call on Day 13, it looks for 7 days before Day 13, i.e., Day 6 - Day 12.
-    // Failures exist on Day 7, Day 8, Day 9 that are unreported.
-    // So, let's call on Day 13.
-    const lastReportDay = currentDay; // Day 6
-    currentDay = addDays(lastReportDay, 7); // This is Day 13
-    console.log(
-      `\n--- Day 13: ${formatDate(currentDay)} - Second Weekly Report (Day 7-12 period) ---`,
-    );
+    // Day 1: Record failure and report immediately
+    currentDay = addDays(firstFailureDate, 1); // Day 1
+    console.log(`\n--- Day 1: ${formatDate(currentDay)} - Record Failure and Report ---`);
+    await concept.recordFailure({
+      user: userCharlie,
+      date: formatDate(currentDay),
+      failureType: SleepEventType.WAKETIME,
+    });
     console.log(
       `Action: updateReports(${userCharlie}, ${formatDate(currentDay)})`,
     );
@@ -679,56 +596,42 @@ Deno.test("5. Weekly Reporting Skipping Period", async () => {
       date: formatDate(currentDay),
     });
     console.log("Output:", reportResult);
-    assertEquals(reportResult, {}, "Day 13: updateReports should succeed");
-    const reportDocW2 = await concept.reports.findOne({ user: userDavid, accountabilitySeeker: userCharlie });
-    const weeklyMsg2 = reportDocW2?.allReports.at(-1) ?? "";
-    assertEquals(weeklyMsg2.includes("Weekly Report"), true, "Day 13: Second Weekly report appended");
+    assertEquals(reportResult, {}, "Day 1: updateReports should succeed");
+    const reportDoc1 = await concept.reports.findOne({ user: userDavid, accountabilitySeeker: userCharlie });
+    const msg1 = reportDoc1?.allReports.at(-1) ?? "";
+    assertEquals(msg1.includes("Alert"), true, "Day 1: Alert report appended");
+    assertEquals(msg1.includes(`Date: ${formatDate(currentDay)}`), true, "Day 1: Includes Day 1 failure");
 
-    // Failures recorded were Day 0 to Day 9.
-    // First report covered Day 0 to Day 6.
-    // This report on Day 13 should cover from Day 6 (7 days ago) to Day 13.
-    // Unreported failures in this range are Day 7, Day 8, Day 9.
-    const lines = weeklyMsg2.split("\n");
-    const failureLines = lines.filter((l) => l.startsWith("- "));
-    assertEquals(failureLines.length, 3, "Report should list 3 failures (Day 7-9)");
-    assertEquals(weeklyMsg2.includes(`Date: ${formatDate(addDays(firstFailureDate, 7))}`), true, "Report includes Day 7 failure");
-    assertEquals(weeklyMsg2.includes(`Date: ${formatDate(addDays(firstFailureDate, 8))}`), true, "Report includes Day 8 failure");
-    assertEquals(weeklyMsg2.includes(`Date: ${formatDate(addDays(firstFailureDate, 9))}`), true, "Report includes Day 9 failure");
-
-    // Verify failures Day 7-9 are reported
-    let failuresSecondWeek = await getFailures(
-      userCharlie,
-      addDays(firstFailureDate, 7),
-      addDays(firstFailureDate, 9),
-    );
-    let unreportedSecondWeek = failuresSecondWeek.filter((f) => !f.reported);
-    assertEquals(
-      unreportedSecondWeek.length,
-      0,
-      "All failures from Day 7-9 should be reported",
-    );
+    // Verify failure Day 1 is reported
+    let failuresDay1 = await getFailures(userCharlie, currentDay, currentDay);
+    if (failuresDay1.length > 0) {
+      assertEquals(failuresDay1[0].reported, true, "Day 1 failure should be reported");
+    } else {
+      // Fallback: fetch by failingUser and check if any are reported
+      const allFailures = await concept.adherenceFailures.find({ failingUser: userCharlie }).toArray();
+      const day1Failure = allFailures.find(f => formatDate(f.date) === formatDate(currentDay));
+      assertEquals(day1Failure?.reported, true, "Day 1 failure should be reported");
+    }
     partnership = await getPartnership(userCharlie, userDavid);
     assertEquals(
       formatDate(partnership?.lastReportDate!),
       formatDate(currentDay),
-      "lastReportDate updated to Day 13",
+      "lastReportDate updated to Day 1",
     );
 
-    // Day 14: No new failures, no new report expected
-    currentDay = addDays(currentDay, 1); // This is Day 14
-    console.log(
-      `\n--- Day 14: ${formatDate(currentDay)} - No new Weekly Report Expected ---`,
-    );
+    // Day 2: No failure, no report expected
+    currentDay = addDays(firstFailureDate, 2); // Day 2
+    console.log(`\n--- Day 2: ${formatDate(currentDay)} - No Failure, No Report ---`);
     console.log(`Action: updateReports(${userCharlie}, ${formatDate(currentDay)})`);
     reportResult = await concept.updateReports({
       user: userCharlie,
       date: formatDate(currentDay),
     });
     console.log("Output:", reportResult);
-    assertEquals(reportResult, {}, "Day 14: updateReports should succeed");
-    const lenAfter13 = (await concept.reports.findOne({ user: userDavid, accountabilitySeeker: userCharlie }))?.allReports.length ?? 0;
-    const lenAfter14 = (await concept.reports.findOne({ user: userDavid, accountabilitySeeker: userCharlie }))?.allReports.length ?? 0;
-    assertEquals(lenAfter14, lenAfter13, "Day 14: No new weekly report should be appended");
+    assertEquals(reportResult, {}, "Day 2: updateReports should succeed");
+    const lenAfterDay1 = (await concept.reports.findOne({ user: userDavid, accountabilitySeeker: userCharlie }))?.allReports.length ?? 0;
+    const lenAfterDay2 = (await concept.reports.findOne({ user: userDavid, accountabilitySeeker: userCharlie }))?.allReports.length ?? 0;
+    assertEquals(lenAfterDay2, lenAfterDay1, "Day 2: No new report should be appended when no failures");
   } finally {
     await client.close();
   }

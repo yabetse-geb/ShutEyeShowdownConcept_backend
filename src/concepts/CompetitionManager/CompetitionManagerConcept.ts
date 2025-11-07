@@ -224,7 +224,8 @@ export default class CompetitionManagerConcept {
 
       // Determine if we need to add the date and/or update the score
       // Convert eventDate to YYYY-MM-DD string format for storage
-      const dateString = `${eventDate.getFullYear()}-${String(eventDate.getMonth() + 1).padStart(2, '0')}-${String(eventDate.getDate()).padStart(2, '0')}`;
+      // Use UTC methods since eventDate is normalized to UTC midnight
+      const dateString = `${eventDate.getUTCFullYear()}-${String(eventDate.getUTCMonth() + 1).padStart(2, '0')}-${String(eventDate.getUTCDate()).padStart(2, '0')}`;
 
       // Check if the date string already exists in the array
       const dateArrayToCheck = eventType === SleepEventType.BEDTIME
@@ -360,10 +361,15 @@ export default class CompetitionManagerConcept {
       return { error: `Competition ${competitionId} is not active.` };
     }
 
+    // Normalize current date to UTC midnight for consistent comparison with competition.endDate
     const currentDate = new Date();
-    currentDate.setHours(0, 0, 0, 0); // Normalize to date only in local timezone
+    const currentDateUTC = new Date(Date.UTC(
+      currentDate.getUTCFullYear(),
+      currentDate.getUTCMonth(),
+      currentDate.getUTCDate()
+    ));
 
-    if (currentDate < competition.endDate) {
+    if (currentDateUTC < competition.endDate) {
       return { error: `Competition ${competitionId} has not ended yet.` };
     }
 

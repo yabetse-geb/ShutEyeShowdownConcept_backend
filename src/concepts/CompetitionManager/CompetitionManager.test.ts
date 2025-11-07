@@ -121,7 +121,8 @@ Deno.test("Operational Principle: Full competition lifecycle and leaderboard", a
   console.log("\n--- Getting Leaderboard Mid-Competition ---");
   const midLeaderboardResult = await concept._getLeaderboard({ competitionId: compId });
   assertEquals(Array.isArray(midLeaderboardResult), true, "Leaderboard should be an array.");
-  const midLeaderboard = midLeaderboardResult as { position: number; userId: ID; totalScore: number }[];
+  // Extract entry from nested structure: Array<{ entry: { ... } }>
+  const midLeaderboard = midLeaderboardResult.map(item => item.entry);
   console.log(`Result: ${JSON.stringify(midLeaderboard)}`);
   const expectedMidLeaderboard = [
     { position: 1, userId: userAlice, totalScore: 2 },
@@ -153,7 +154,8 @@ Deno.test("Operational Principle: Full competition lifecycle and leaderboard", a
   console.log("\n--- Getting Leaderboard Post-Competition ---");
   const postLeaderboardResult = await concept._getLeaderboard({ competitionId: compId });
   assertEquals(Array.isArray(postLeaderboardResult), true, "Post-competition leaderboard should be an array.");
-  const postLeaderboard = postLeaderboardResult as { position: number; userId: ID; totalScore: number }[];
+  // Extract entry from nested structure: Array<{ entry: { ... } }>
+  const postLeaderboard = postLeaderboardResult.map(item => item.entry);
   console.log(`Result: ${JSON.stringify(postLeaderboard)}`);
   // After endCompetition, penalties are applied for missing reports across totalDays=5
   // Totals become: Alice=-6, Bob=-7, Charlie=-9, order remains the same

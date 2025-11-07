@@ -34,7 +34,8 @@ function expectSleepSlot(slot: unknown): asserts slot is {
   }
 }
 
-// Helper to parse date strings in "YYYY-MM-DD" format
+// Helper to format Date objects to "YYYY-MM-DDTHH:MM" format
+// Note: parseDateTimeString creates local Date objects, so we use local time methods
 function formatDateTime(date: Date): string {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -71,15 +72,17 @@ Deno.test("SleepSchedule: Operational Principle (Success Scenario)", async () =>
     // Verify initial state
     const slot1_initial_raw = await sleepSchedule._getSleepSlot({ u: userAlice, dateStr: date1 });
     console.log(`Query: _getSleepSlot (${userAlice}, ${date1}) -> ${JSON.stringify(slot1_initial_raw)}`);
-    // Use type guard to assert that the result is a SleepSlot
-    expectSleepSlot(slot1_initial_raw);
+    // _getSleepSlot returns an array, extract first element
+    assertEquals(slot1_initial_raw.length, 1, "Should return exactly one sleep slot");
+    const slot1_initial = slot1_initial_raw[0];
+    expectSleepSlot(slot1_initial);
 
-    assertEquals(slot1_initial_raw.u, userAlice);
-    assertEquals(slot1_initial_raw.date.getTime(), normalizeDateString(date1).getTime());
-    assertEquals(formatDateTime(slot1_initial_raw.bedTime), targetBedtime);
-    assertEquals(formatDateTime(slot1_initial_raw.wakeUpTime), targetWakeup);
-    assertEquals(slot1_initial_raw.bedTimeSuccess, null);
-    assertEquals(slot1_initial_raw.wakeUpSuccess, null);
+    assertEquals(slot1_initial.u, userAlice);
+    assertEquals(slot1_initial.date.getTime(), normalizeDateString(date1).getTime());
+    assertEquals(formatDateTime(slot1_initial.bedTime), targetBedtime);
+    assertEquals(formatDateTime(slot1_initial.wakeUpTime), targetWakeup);
+    assertEquals(slot1_initial.bedTimeSuccess, null);
+    assertEquals(slot1_initial.wakeUpSuccess, null);
 
     // Alice reports bedtime early - within tolerance
     // 22:00 target, 21:30 reported = 30 minutes early, but within 15 min tolerance = FAIL
@@ -104,12 +107,13 @@ Deno.test("SleepSchedule: Operational Principle (Success Scenario)", async () =>
     // Verify final state for the principle
     const slot1_final_raw = await sleepSchedule._getSleepSlot({ u: userAlice, dateStr: date1 });
     console.log(`Query: _getSleepSlot (${userAlice}, ${date1}) -> ${JSON.stringify(slot1_final_raw)}`);
-    // Use type guard again
-    expectSleepSlot(slot1_final_raw);
+    // _getSleepSlot returns an array, extract first element
+    assertEquals(slot1_final_raw.length, 1, "Should return exactly one sleep slot");
+    const slot1_final = slot1_final_raw[0];
+    expectSleepSlot(slot1_final);
 
-
-    assertEquals(slot1_final_raw.bedTimeSuccess, false);
-    assertEquals(slot1_final_raw.wakeUpSuccess, true);
+    assertEquals(slot1_final.bedTimeSuccess, false);
+    assertEquals(slot1_final.wakeUpSuccess, true);
 
     console.log("--- Finished Test: Operational Principle ---");
   }finally {
@@ -213,7 +217,6 @@ Deno.test("SleepSchedule: Invalid Inputs & Precondition Failures", async () => {
     console.log(`Action: reportBedTime (invalid reported time) -> ${JSON.stringify(invalidReportedBedtime)}`);
     assertEquals(invalidReportedBedtime, { error: "Invalid reported bedtime string format. Expected YYYY-MM-DDTHH:MM" });
 
-    await client.close();
     console.log("--- Finished Test: Invalid Inputs & Precondition Failures ---");
   } finally {
     await client.close();
@@ -266,15 +269,14 @@ Deno.test("SleepSchedule: Reporting Failures (Missed Targets)", async () => {
     // Verify final state for Bob
     const slotBob_final_raw = await sleepSchedule._getSleepSlot({ u: userBob, dateStr: date2 });
     console.log(`Query: _getSleepSlot (${userBob}, ${date2}) -> ${JSON.stringify(slotBob_final_raw)}`);
-    // Use type guard
-    // assert(isSleepSlot(slotBob_final_raw), `Expected a SleepSlot object, but received: ${JSON.stringify(slotBob_final_raw)}`);
-    expectSleepSlot(slotBob_final_raw);
+    // _getSleepSlot returns an array, extract first element
+    assertEquals(slotBob_final_raw.length, 1, "Should return exactly one sleep slot");
+    const slotBob_final = slotBob_final_raw[0];
+    expectSleepSlot(slotBob_final);
 
+    assertEquals(slotBob_final.bedTimeSuccess, false);
+    assertEquals(slotBob_final.wakeUpSuccess, false);
 
-    assertEquals(slotBob_final_raw.bedTimeSuccess, false);
-    assertEquals(slotBob_final_raw.wakeUpSuccess, false);
-
-    await client.close();
     console.log("--- Finished Test: Reporting Failures ---");
   } finally {
     await client.close();
@@ -335,25 +337,27 @@ Deno.test("SleepSchedule: Multiple Users and Dates", async () => {
     // Verify Alice's slot for date3
     const aliceSlot3_raw = await sleepSchedule._getSleepSlot({ u: userAlice, dateStr: date3 });
     console.log(`Query: _getSleepSlot (${userAlice}, ${date3}) -> ${JSON.stringify(aliceSlot3_raw)}`);
-    // Use type guard
-    expectSleepSlot(aliceSlot3_raw);
+    // _getSleepSlot returns an array, extract first element
+    assertEquals(aliceSlot3_raw.length, 1, "Should return exactly one sleep slot");
+    const aliceSlot3 = aliceSlot3_raw[0];
+    expectSleepSlot(aliceSlot3);
 
-    assertEquals(aliceSlot3_raw.bedTimeSuccess, true);
-    assertEquals(aliceSlot3_raw.wakeUpSuccess, null); // Not reported yet
+    assertEquals(aliceSlot3.bedTimeSuccess, true);
+    assertEquals(aliceSlot3.wakeUpSuccess, null); // Not reported yet
 
     // Verify Bob's slot for date3
     const bobSlot3_raw = await sleepSchedule._getSleepSlot({ u: userBob, dateStr: date3 });
     console.log(`Query: _getSleepSlot (${userBob}, ${date3}) -> ${JSON.stringify(bobSlot3_raw)}`);
-    // Use type guard
-    expectSleepSlot(bobSlot3_raw);
+    // _getSleepSlot returns an array, extract first element
+    assertEquals(bobSlot3_raw.length, 1, "Should return exactly one sleep slot");
+    const bobSlot3 = bobSlot3_raw[0];
+    expectSleepSlot(bobSlot3);
 
+    assertEquals(bobSlot3.bedTimeSuccess, null); // Not reported yet
+    assertEquals(bobSlot3.wakeUpSuccess, false);
 
-    assertEquals(bobSlot3_raw.bedTimeSuccess, null); // Not reported yet
-    assertEquals(bobSlot3_raw.wakeUpSuccess, false);
-
-    await client.close();
     console.log("--- Finished Test: Multiple Users and Dates ---");
-  }finally {
+  } finally {
     await client.close();
   }
 });
@@ -382,11 +386,12 @@ Deno.test("SleepSchedule: Remove Sleep Slot", async () => {
     // Verify it exists
     let slot4_raw = await sleepSchedule._getSleepSlot({ u: userAlice, dateStr: date4 });
     console.log(`Query: _getSleepSlot (${userAlice}, ${date4}) -> ${JSON.stringify(slot4_raw)}`);
-    // Use type guard
-    expectSleepSlot(slot4_raw);
+    // _getSleepSlot returns an array, extract first element
+    assertEquals(slot4_raw.length, 1, "Should return exactly one sleep slot");
+    const slot4 = slot4_raw[0];
+    expectSleepSlot(slot4);
 
-
-    assertEquals(slot4_raw.u, userAlice);
+    assertEquals(slot4.u, userAlice);
 
     // Alice removes the sleep slot for date4
     const removeResult = await sleepSchedule.removeSleepSlot({ u: userAlice, dateStr: date4 });
@@ -396,12 +401,10 @@ Deno.test("SleepSchedule: Remove Sleep Slot", async () => {
     // Verify it's no longer present
     slot4_raw = await sleepSchedule._getSleepSlot({ u: userAlice, dateStr: date4 }); // Re-query after deletion
     console.log(`Query: _getSleepSlot (${userAlice}, ${date4}) -> ${JSON.stringify(slot4_raw)}`);
-    assertEquals(slot4_raw, null); // Expect null after removal
+    assertEquals(slot4_raw.length, 0, "Should return empty array after removal"); // Expect empty array after removal
 
-    await client.close();
     console.log("--- Finished Test: Remove Sleep Slot ---");
-  }
-  finally {
+  } finally {
     await client.close();
   }
 });
@@ -466,9 +469,8 @@ Deno.test("SleepSchedule: _getAllSleepSlotsForUser Query", async () => {
     console.log(`Query: _getAllSleepSlotsForUser (${userCharlie}) -> Found ${charlieSlots.length} slots.`);
     assertEquals(charlieSlots.length, 0);
 
-    await client.close();
     console.log("--- Finished Test: _getAllSleepSlotsForUser Query ---");
-  }finally {
+  } finally {
     await client.close();
   }
 });

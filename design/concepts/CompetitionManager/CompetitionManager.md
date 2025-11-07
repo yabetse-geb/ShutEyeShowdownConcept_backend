@@ -78,14 +78,6 @@
             *   Otherwise, sets `c.winners` to the set of users with the highest score.
             *   Returns the set of winning `User` IDs, or `null` if it's a tie among all participants.
 
-    *   `getLeaderboard (c: Competition): {position:number; userId: User; totalScore: number}[]`
-        *   **requires**:
-            *   `competitionId` must refer to an existing `Competition c` in `competitions`.
-        *   **effects**:
-            *   Retrieves all `Score` entries for the `Competition c`.
-            *   Calculates the total score for each user.
-            *   Returns a list of objects, each containing a user's ID, their total score, and their rank, sorted in descending order of `totalScore`.
-
     *   `removeParticipant (competitionId: CompetitionId, userId: UserId)`
         *   **purpose**: To remove a specific user from an active competition and clear their associated scores. If the competition no longer has a viable number of participants, it is deactivated.
         *   **requires**:
@@ -99,6 +91,20 @@
             *   If `c.participants.size() < 2` after removal:
                 *   Sets `c.active` to `false`.
                 *   Sets `c.winners` to `null`.
+	*    `decrementScore(competitionId: Competition, userId:User, eventType:SleepEventType)`
+        *    **requires**:
+            * `competitionId` must refer to an existing `Competition c` in `competitions`.
+            * `userId` must be a member of `c.participants`.
+        * **effects**:
+            * returns the list of dates, reportedBedtimeDates, for the Score with (u:User, c:Competition) if eventType==SleepEventType.BEDTIME otherwise reportedWakeUpDates for the Score with (u:User, c:Competetion) if eventType==SleepEventType.WAKEUP
+*   **queries**:
+    *   `_getLeaderboard (c: Competition): {position:number; userId: User; totalScore: number}[]`
+        *   **requires**:
+            *   `competitionId` must refer to an existing `Competition c` in `competitions`.
+        *   **effects**:
+            *   Retrieves all `Score` entries for the `Competition c`.
+            *   Calculates the total score for each user.
+            *   Returns a list of objects, each containing a user's ID, their total score, and their rank, sorted in descending order of `totalScore`.
 	* ` _getCompetitionsForUser(user:User):`
 		* effects: returns all Competitions that user is a participant in
 	*    `_getReportedDates(competitionId: Competition, userId:User, eventType:SleepEventType)`

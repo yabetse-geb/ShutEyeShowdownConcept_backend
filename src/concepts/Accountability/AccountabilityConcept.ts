@@ -401,7 +401,7 @@ export default class AccountabilityConcept {
    * @returns {Empty | {error: string}} Empty on success, or an error object.
    *
    * @requires The user has at least one partnership recorded in Partnerships. date is parseable into a Date object.
-   * @effects Dynamically generates notifications based on partnership preferences (Immediate, Daily, Weekly),
+   * @effects Dynamically generates notifications based on partnership preferences (bedtime and/or wake up time failures),
    *          marks relevant failures as reported, updates the partnership's lastReportDate,
    *          and appends the generated report string to the Reports document with (user: partner, accountabilitySeeker: user).
    */

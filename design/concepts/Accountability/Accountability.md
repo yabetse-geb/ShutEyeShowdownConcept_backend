@@ -7,8 +7,8 @@
 # Concept: Accountability
 
 - **concept** Accountability [User]
-- **purpose**     Enable structured accountability between users by recording their partnerships, adherence tracking preferences, and report frequencies. The concept maintains only the data required to support external systems in generating notifications or summaries—it does not send or deliver messages itself. By storing which types of adherence failures are monitored and when reports should be produced, the concept ensures that each partnership’s accountability data remains accurate, consistent, and ready for use by reporting or notification services.
-- **principle**     If a user establishes an accountability partnership with a partner and configures notification preferences (e.g., daily reports for specific adherence failures), and the user then records adherence failures, then the concept will, at the defined frequency, enable the generation of a report for the partner detailing those failures, marking them as reported and updating the partnership's last report date.
+- **purpose**     Enable structured accountability between users by recording their partnerships, adherence tracking preferences. Users allocate what types of reports should be sent to accountability partners (bedtime and/or wake up time failures) and reports are generated and made visible to accountability partners.
+- **principle**     If a user establishes an accountability partnership with a partner and configures notification preferences (e.g., reports for bedtime failures), and the user then records adherence failures, then the concept will, at the defined frequency, enable the generation of a report to send to the partner detailing those failures, marking them as reported and updating the partnership's last report date.
 - types:
 	- `SleepEventType`: An enumeration representing the type of sleep event.
 		- `BEDTIME`: Represents the event of going to bed.
@@ -19,7 +19,6 @@
         - a user:User
         - a partner:User
         - notifyTypes: set of FailureType // e.g., {MissedBedtime, MissedWake}
-        - reportFrequency: FrequencyType // Immediate | Daily | Weekly
         - lastReportDate:Date
     - a set of AdherenceFailures with
 	    - a failingUser:User
@@ -38,9 +37,9 @@
     - removePartner(user: User, partner:User)
         - **requires**: (user, partner) in Partnerships
         - **effects**: remove the pairing user, partner in Partnerships and Reports
-    - updatePreferences(user: User, partner: User, notifyTypes: set of FailureType, reportFrequency: FrequencyType)
+    - updatePreferences(user: User, partner: User, notifyTypes: set of FailureType)
 	    - requires: (user, partner) in Partnerships
-	    - effects: modify that partnership’s notifyTypes and reportFrequency
+	    - effects: modify that partnership’s notifyTypes
     - recordFailure(user: User, date:string, failureType:SleepEvent):
 	    - requires: date can be parsed into a Date object and same exact failure is not in AdherenceFailures
 	    - effects:
@@ -62,15 +61,7 @@
 			- The user has at least one partnership recorded in Partnerships.
 		- effects:
 			- For each partnership where the user is the main user and partner is the partner:
-				- If reportFrequency is Immediate:
 						generate a string report of all unreported failures from the current day and mark them as reported in AdherenceFailures
-				- If reportFrequency is Daily:
-						• Let previousDay = current date minus one day
-						• If the last report date is before the previous day:
-							- generate a string report of all unreported failures from the current day and mark them as reported in AdherenceFailures
-				- If reportFrequency is Weekly:
-						• If seven or more days have passed since the last report date:
-							- generate a string report of all unreported failures from the past 7 days and mark them as reported in AdherenceFailures
 				- append this generated string report to allReports in Report with (user:partner, accountabilitySeeker: user) and updates lastReportedDate
 
 

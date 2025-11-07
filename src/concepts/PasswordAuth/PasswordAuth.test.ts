@@ -14,7 +14,7 @@ Deno.test("PasswordAuthConcept Tests", async (t) => {
       console.log("\n--- Operational Principle Trace ---");
 
       // 1. Register a user
-      const registerInput = { username: "Alice", password: "password123", email: "alice@example.com" };
+      const registerInput = { username: "Alice", password: "password123" };
       console.log("Action: register", registerInput);
       const registerResult = await concept.register(registerInput);
       assertEquals("user" in registerResult, true, "Register should succeed");
@@ -29,29 +29,14 @@ Deno.test("PasswordAuthConcept Tests", async (t) => {
       assertEquals((authResult as { user: UserID }).user, aliceId, "Authenticated user ID should match");
       console.log("Result:", authResult);
 
-      // 3. Change the user's email
-      const changeEmailInput = { username: "Alice", password: "password123", newEmail: "alice.new@example.com" };
-      console.log("Action: changeEmail", changeEmailInput);
-      const changeEmailResult = await concept.changeEmail(changeEmailInput);
-      assertEquals("error" in changeEmailResult, false, "changeEmail should succeed");
-      console.log("Result:", changeEmailResult);
-
-      // 4. Verify the email has changed using the query
-      const getEmailInput = { username: "Alice" };
-      console.log("Query: _getEmail", getEmailInput);
-      const getEmailResult = await concept._getEmail(getEmailInput);
-      assertEquals("email" in getEmailResult, true, "_getEmail should succeed");
-      assertEquals((getEmailResult as { email: string }).email, "alice.new@example.com", "Email should be updated to alice.new@example.com");
-      console.log("Result:", getEmailResult);
-
-      // 5. Change the user's password
+      // 3. Change the user's password
       const changePasswordInput = { username: "Alice", currentPassword: "password123", newPassword: "newPassword456" };
       console.log("Action: changePassword", changePasswordInput);
       const changePasswordResult = await concept.changePassword(changePasswordInput);
       assertEquals("error" in changePasswordResult, false, "changePassword should succeed");
       console.log("Result:", changePasswordResult);
 
-      // 6. Attempt to authenticate with the old password (expected to fail)
+      // 4. Attempt to authenticate with the old password (expected to fail)
       const authOldPassInput = { username: "Alice", password: "password123" };
       console.log("Action: authenticate (old password)", authOldPassInput);
       const authOldPassResult = await concept.authenticate(authOldPassInput);
@@ -59,7 +44,7 @@ Deno.test("PasswordAuthConcept Tests", async (t) => {
       assertEquals((authOldPassResult as { error: string }).error, "Invalid username or password.", "Correct error message for old password");
       console.log("Result:", authOldPassResult);
 
-      // 7. Authenticate with the new password (expected to succeed)
+      // 5. Authenticate with the new password (expected to succeed)
       const authNewPassInput = { username: "Alice", password: "newPassword456" };
       console.log("Action: authenticate (new password)", authNewPassInput);
       const authNewPassResult = await concept.authenticate(authNewPassInput);
@@ -67,18 +52,21 @@ Deno.test("PasswordAuthConcept Tests", async (t) => {
       assertEquals((authNewPassResult as { user: UserID }).user, aliceId, "Authenticated user ID should match after password change");
       console.log("Result:", authNewPassResult);
 
-      // 8. Deactivate the user's account
+      // 6. Deactivate the user's account
       const deactivateInput = { username: "Alice", password: "newPassword456" };
       console.log("Action: deactivateAccount", deactivateInput);
       const deactivateResult = await concept.deactivateAccount(deactivateInput);
       assertEquals("error" in deactivateResult, false, "deactivateAccount should succeed");
       console.log("Result:", deactivateResult);
 
-      // 9. Verify the user is no longer registered using the query
+      // 7. Verify the user is no longer registered using the query
       const isRegisteredInput = { username: "Alice" };
       console.log("Query: _isRegistered", isRegisteredInput);
       const isRegisteredResult = await concept._isRegistered(isRegisteredInput);
-      assertEquals(isRegisteredResult.isRegistered, false, "User should no longer be registered after deactivation");
+      // _isRegistered returns Array<{ isRegistered: boolean }>
+      assertEquals(Array.isArray(isRegisteredResult), true, "_isRegistered should return an array");
+      assertEquals(isRegisteredResult.length > 0, true, "_isRegistered should return at least one result");
+      assertEquals(isRegisteredResult[0].isRegistered, false, "User should no longer be registered after deactivation");
       console.log("Result:", isRegisteredResult);
     });
 
@@ -86,7 +74,7 @@ Deno.test("PasswordAuthConcept Tests", async (t) => {
       console.log("\n--- Scenario 1: Duplicate Registration ---");
 
       // Register a user successfully
-      const userBob = { username: "Bob", password: "bobPass", email: "bob@example.com" };
+      const userBob = { username: "Bob", password: "bobPass" };
       console.log("Action: register (first time)", userBob);
       const res1 = await concept.register(userBob);
       assertEquals("user" in res1, true, "First registration should succeed");
@@ -94,11 +82,11 @@ Deno.test("PasswordAuthConcept Tests", async (t) => {
       console.log("Result:", res1);
 
       // Attempt to register another user with the same username but different details (expected to fail)
-      const userBobDuplicate = { username: "Bob", password: "differentPass", email: "different@example.com" };
+      const userBobDuplicate = { username: "Bob", password: "differentPass" };
       console.log("Action: register (duplicate username)", userBobDuplicate);
       const res2 = await concept.register(userBobDuplicate);
       assertEquals("error" in res2, true, "Duplicate registration should fail");
-      assertEquals((res2 as { error: string }).error, "Username already taken.", "Correct error message for duplicate username");
+      assertEquals((res2 as { error: string }).error, "Username already exists.", "Correct error message for duplicate username");
       console.log("Result:", res2);
 
       // Verify the original user can still authenticate
@@ -112,7 +100,7 @@ Deno.test("PasswordAuthConcept Tests", async (t) => {
       console.log("\n--- Scenario 2: Authentication Fail/Success ---");
 
       // Register a user
-      const userCharlie = { username: "Charlie", password: "charliePass", email: "charlie@example.com" };
+      const userCharlie = { username: "Charlie", password: "charliePass" };
       console.log("Action: register", userCharlie);
       const res1 = await concept.register(userCharlie);
       assertEquals("user" in res1, true, "Registration should succeed");
@@ -140,7 +128,7 @@ Deno.test("PasswordAuthConcept Tests", async (t) => {
       console.log("\n--- Scenario 3: Change Password Verification ---");
 
       // Register a user
-      const userDavid = { username: "David", password: "davidPass", email: "david@example.com" };
+      const userDavid = { username: "David", password: "davidPass" };
       console.log("Action: register", userDavid);
       const res1 = await concept.register(userDavid);
       assertEquals("user" in res1, true, "Registration should succeed");
@@ -175,7 +163,7 @@ Deno.test("PasswordAuthConcept Tests", async (t) => {
       console.log("\n--- Scenario 4: Deactivate & Re-Register ---");
 
       // Register a user
-      const userEve = { username: "Eve", password: "evePass", email: "eve@example.com" };
+      const userEve = { username: "Eve", password: "evePass" };
       console.log("Action: register (first time)", userEve);
       const res1 = await concept.register(userEve);
       assertEquals("user" in res1, true, "First registration should succeed");
@@ -193,11 +181,14 @@ Deno.test("PasswordAuthConcept Tests", async (t) => {
       const isRegisteredInput = { username: "Eve" };
       console.log("Query: _isRegistered (after deactivation)", isRegisteredInput);
       const isRegisteredResult = await concept._isRegistered(isRegisteredInput);
-      assertEquals(isRegisteredResult.isRegistered, false, "User should not be registered after deactivation");
+      // _isRegistered returns Array<{ isRegistered: boolean }>
+      assertEquals(Array.isArray(isRegisteredResult), true, "_isRegistered should return an array");
+      assertEquals(isRegisteredResult.length > 0, true, "_isRegistered should return at least one result");
+      assertEquals(isRegisteredResult[0].isRegistered, false, "User should not be registered after deactivation");
       console.log("Result:", isRegisteredResult);
 
       // Re-register with the same username (expected to succeed now)
-      const userEveReRegister = { username: "Eve", password: "eveNewPass", email: "eve_new@example.com" };
+      const userEveReRegister = { username: "Eve", password: "eveNewPass" };
       console.log("Action: register (re-register)", userEveReRegister);
       const res2 = await concept.register(userEveReRegister);
       assertEquals("user" in res2, true, "Re-registration should succeed");
@@ -214,38 +205,42 @@ Deno.test("PasswordAuthConcept Tests", async (t) => {
       console.log("Result:", authNewRegisterResult);
     });
 
-    await t.step("Scenario 5: Confirming email change", async () => {
-      console.log("\n--- Scenario 5: Email Change Confirmation ---");
+    await t.step("Scenario 5: Verify _getUsername and _getUserByUsername queries", async () => {
+      console.log("\n--- Scenario 5: Username Queries ---");
 
       // Register a user
-      const userFrank = { username: "Frank", password: "frankPass", email: "frank@example.com" };
+      const userFrank = { username: "Frank", password: "frankPass" };
       console.log("Action: register", userFrank);
       const res1 = await concept.register(userFrank);
       assertEquals("user" in res1, true, "Registration should succeed");
+      const frankId = (res1 as { user: UserID }).user;
       console.log("Result:", res1);
 
-      // Get and verify initial email
-      const initialGetEmailInput = { username: "Frank" };
-      console.log("Query: _getEmail (initial)", initialGetEmailInput);
-      const initialGetEmailResult = await concept._getEmail(initialGetEmailInput);
-      assertEquals("email" in initialGetEmailResult, true, "getEmail should return an email");
-      assertEquals((initialGetEmailResult as { email: string }).email, "frank@example.com", "Initial email should be correct");
-      console.log("Result:", initialGetEmailResult);
+      // Test _getUsername query
+      const getUsernameInput = { userId: frankId };
+      console.log("Query: _getUsername", getUsernameInput);
+      const getUsernameResult = await concept._getUsername(getUsernameInput);
+      assertEquals(Array.isArray(getUsernameResult), true, "_getUsername should return an array");
+      assertEquals(getUsernameResult.length > 0, true, "_getUsername should return at least one result");
+      assertEquals(getUsernameResult[0].username, "Frank", "Username should match");
+      console.log("Result:", getUsernameResult);
 
-      // Change email
-      const changeEmailInput = { username: "Frank", password: "frankPass", newEmail: "frank.updated@example.com" };
-      console.log("Action: changeEmail", changeEmailInput);
-      const changeEmailResult = await concept.changeEmail(changeEmailInput);
-      assertEquals("error" in changeEmailResult, false, "changeEmail should succeed");
-      console.log("Result:", changeEmailResult);
+      // Test _getUserByUsername query
+      const getUserByUsernameInput = { username: "Frank" };
+      console.log("Query: _getUserByUsername", getUserByUsernameInput);
+      const getUserByUsernameResult = await concept._getUserByUsername(getUserByUsernameInput);
+      assertEquals(Array.isArray(getUserByUsernameResult), true, "_getUserByUsername should return an array");
+      assertEquals(getUserByUsernameResult.length > 0, true, "_getUserByUsername should return at least one result");
+      assertEquals(getUserByUsernameResult[0].user, frankId, "User ID should match");
+      console.log("Result:", getUserByUsernameResult);
 
-      // Confirm email has been updated
-      const confirmGetEmailInput = { username: "Frank" };
-      console.log("Query: _getEmail (after change)", confirmGetEmailInput);
-      const confirmGetEmailResult = await concept._getEmail(confirmGetEmailInput);
-      assertEquals("email" in confirmGetEmailResult, true, "getEmail should return an email after change");
-      assertEquals((confirmGetEmailResult as { email: string }).email, "frank.updated@example.com", "Email should be updated and confirmed");
-      console.log("Result:", confirmGetEmailResult);
+      // Test _getUserByUsername with non-existent user
+      const getNonExistentInput = { username: "NonExistentUser" };
+      console.log("Query: _getUserByUsername (non-existent)", getNonExistentInput);
+      const getNonExistentResult = await concept._getUserByUsername(getNonExistentInput);
+      assertEquals(Array.isArray(getNonExistentResult), true, "_getUserByUsername should return an array");
+      assertEquals(getNonExistentResult.length, 0, "_getUserByUsername should return empty array for non-existent user");
+      console.log("Result:", getNonExistentResult);
     });
   } finally {
     // Ensure the database client is closed even if tests fail

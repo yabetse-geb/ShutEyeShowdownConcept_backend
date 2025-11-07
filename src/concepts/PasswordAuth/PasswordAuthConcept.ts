@@ -157,12 +157,12 @@ export default class PasswordAuthConcept {
   }
 
     /**
-   * _getUserByUsername (username: String): (user: User)
+   * _getUserByUsername (username: String): (user: UserID)
    *
    * **requires**: a User with the given `username` exists.
-   * **effects**: returns the corresponding User.
+   * **effects**: returns the corresponding User's ID.
    */
-  async _getUserByUsername({ username }: { username: string }): Promise<{ user: User }[]> {
+  async _getUserByUsername({ username }: { username: string }): Promise<Array<{ user: UserID }>> {
     const user = await this.users.findOne({ username });
     if (user) {
       return [{ user: user._id }];

@@ -20,8 +20,14 @@
     - changePassword(username:String, currentPassword:String, newPassword:String)
         - **requires**: there exists a User u with username and password
         - **effects**: sets u.password to newPassword
-	- isRegistered(username:String): Bool
-		- **effects:** returns true if a User exists with the given username, otherwise false
     - deactivateAccount(username:String, password:String):
 	    -  **requires**: there exists a User u with username and password
         - **effects**: remove the User with username and password
+
+- **queries**:
+	- _isRegistered(username:String): Bool
+		- **effects:** returns true if a User exists with the given username, otherwise false
+    - _getUsername(user:User):[{username:user.username}]
+        - **effects**: returns username field for user
+    - _getUserByUsername(username): User
+        - **effects:** returns user with username
