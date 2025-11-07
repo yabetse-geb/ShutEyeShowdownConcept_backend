@@ -18,15 +18,6 @@ enum SleepEventType {
  */
 type FailureType = SleepEventType;
 
-/**
- * FrequencyType: Defines how often notifications should be reported.
- * Immediate | Daily | Weekly
- */
-enum FrequencyType {
-  IMMEDIATE = "Immediate",
-  DAILY = "Daily",
-  WEEKLY = "Weekly",
-}
 
 // --- Test Helpers ---
 function addDays(baseDate: Date, days: number): Date {
@@ -120,31 +111,20 @@ Deno.test("1. Operational Principle: Establish, Configure, Record, Report Daily"
       userBob,
       "Partnership should exist for Bob",
     );
-    assertEquals(
-      partnership?.reportFrequency,
-      FrequencyType.IMMEDIATE,
-      "Default frequency should be Immediate",
-    );
 
     // Action: updatePreferences
     console.log(
-      `Action: updatePreferences(${userAlice}, ${userBob}, [BEDTIME], DAILY)`,
+      `Action: updatePreferences(${userAlice}, ${userBob}, [BEDTIME])`,
     );
     const updatePrefsResult = await concept.updatePreferences({
       user: userAlice,
       partner: userBob,
       notifyTypes: [SleepEventType.BEDTIME],
-      reportFrequency: FrequencyType.DAILY,
     });
     console.log("Output:", updatePrefsResult);
     assertEquals(updatePrefsResult, {}, "updatePreferences should succeed");
 
     partnership = await getPartnership(userAlice, userBob);
-    assertEquals(
-      partnership?.reportFrequency,
-      FrequencyType.DAILY,
-      "Frequency should be updated to Daily",
-    );
     assertEquals(
       partnership?.notifyTypes,
       [SleepEventType.BEDTIME],
@@ -313,7 +293,6 @@ Deno.test("3. Frequency Transition (Immediate → Daily → Weekly) with reporti
       user: userAlice,
       partner: userCharlie,
       notifyTypes: [SleepEventType.BEDTIME],
-      reportFrequency: FrequencyType.IMMEDIATE,
     });
     await concept.recordFailure({
       user: userAlice,
@@ -369,7 +348,6 @@ Deno.test("3. Frequency Transition (Immediate → Daily → Weekly) with reporti
       user: userAlice,
       partner: userCharlie,
       notifyTypes: [SleepEventType.BEDTIME],
-      reportFrequency: FrequencyType.DAILY,
     });
     await concept.recordFailure({
       user: userAlice,
@@ -434,7 +412,6 @@ Deno.test("3. Frequency Transition (Immediate → Daily → Weekly) with reporti
       user: userAlice,
       partner: userCharlie,
       notifyTypes: [SleepEventType.BEDTIME],
-      reportFrequency: FrequencyType.WEEKLY,
     });
     console.log(
       `Partnership updated to Weekly reporting. lastReportDate: ${
@@ -627,14 +604,8 @@ Deno.test("5. Weekly Reporting Skipping Period", async () => {
       user: userCharlie,
       partner: userDavid,
       notifyTypes: [SleepEventType.BEDTIME, SleepEventType.WAKETIME],
-      reportFrequency: FrequencyType.WEEKLY,
     });
     let partnership = await getPartnership(userCharlie, userDavid);
-    assertEquals(
-      partnership?.reportFrequency,
-      FrequencyType.WEEKLY,
-      "Partnership should be set to Weekly",
-    );
 
     // Record failures for 10 consecutive days (Day 0 to Day 9)
     console.log("\nRecording 10 failures for Charlie (Day 0 - Day 9)...");

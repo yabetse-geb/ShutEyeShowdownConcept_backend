@@ -35,22 +35,11 @@ enum SleepEventType {
 type FailureType = SleepEventType;
 
 /**
- * FrequencyType: Defines how often notifications should be reported.
- * Immediate | Daily | Weekly
- */
-enum FrequencyType {
-  IMMEDIATE = "Immediate",
-  DAILY = "Daily",
-  WEEKLY = "Weekly",
-}
-
-/**
  * Partnerships:
  * a set of Partnerships with
  *   a user:User
  *   a partner:User
  *   notifyTypes: set of FailureType // e.g., {MissedBedtime, MissedWake}
- *   reportFrequency: FrequencyType // Immediate | Daily | Weekly
  *   lastReportDate:Date | null
  */
 interface Partnership {
@@ -58,7 +47,6 @@ interface Partnership {
   user: User; // The user who initiated the partnership
   partner: User; // The user designated as the partner
   notifyTypes: FailureType[]; // Types of failures to notify about
-  reportFrequency: FrequencyType; // How often to report
   lastReportDate: Date | null; // Date of the last report for this partnership
 }
 
@@ -94,21 +82,12 @@ interface Report {
 
 // Utility for parsing date strings to Date objects (YYYY-MM-DD format assumed)
 // Normalize to the start of the day in LOCAL time for consistency with other concepts.
-function parseDateString(dateString: string): Date | null {
-  // // Strictly treat YYYY-MM-DD as a local calendar date
-  // const parts = dateString.split("-").map(Number);
-  // if (parts.length !== 3 || parts.some((n) => Number.isNaN(n))) return null;
-  // const [y, m, d] = parts;
-  // const dt = new Date(y, m - 1, d, 0, 0, 0, 0);
-  // // Validate round-trip to guard invalid dates (e.g., 2024-02-30)
-  // if (dt.getFullYear() !== y || dt.getMonth() !== m - 1 || dt.getDate() !== d) return null;
-  // return dt;
-  const date = new Date(dateString);
+function parseDateString(dateStr: string): Date | null {
+  const date = new Date(dateStr);
   if (isNaN(date.getTime())) {
     return null; // Invalid date string
   }
   // Normalize to the start of the day in local time (e.g., YYYY-MM-DDT00:00:00.000)
-  // return new Date(date.getFullYear(), date.getMonth(), date.getDate());
   return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
 }
 
@@ -139,21 +118,20 @@ export default class AccountabilityConcept {
    * @param {Object} args - The action arguments.
    * @param {User} args.user - The user initiating the partnership.
    * @param {User} args.partner - The user designated as the partner.
+   * @param {FailureType[]} args.notifyTypes - Optional. Types of failures to notify about. Defaults to empty array.
    * @returns {Empty | {error: string}} An empty object on success, or an error object.
    *
    * @requires user and partner are not equal and (user, partner) is not in Partnerships.
-   * @effects add (user, partner, notifyTypes, reportFrequency, null) to Partnerships
+   * @effects add (user, partner, notifyTypes, null) to Partnerships
    */
   async addPartner({
     user,
     partner,
     notifyTypes = [], // Default: no specific failure types to notify
-    reportFrequency = FrequencyType.IMMEDIATE, // Default: immediate reporting
   }: {
     user: User;
     partner: User;
     notifyTypes?: FailureType[];
-    reportFrequency?: FrequencyType;
   }): Promise<Empty | { error: string }> {
     // requires: user and partner are not equal
     if (user === partner) {
@@ -166,13 +144,12 @@ export default class AccountabilityConcept {
       return { error: "Partnership already exists." };
     }
 
-    // effects: add (user, partner, notifyTypes, reportFrequency, null) to Partnerships
+    // effects: add (user, partner, notifyTypes, null) to Partnerships
     const newPartnership: Partnership = {
       _id: freshID(),
       user,
       partner,
       notifyTypes, // Default: no specific failure types to notify
-      reportFrequency, // Default: immediate reporting
       lastReportDate: null,
     };
 
@@ -246,22 +223,19 @@ export default class AccountabilityConcept {
    * @param {User} args.user - The user who initiated the partnership.
    * @param {User} args.partner - The partner whose preferences are being updated.
    * @param {FailureType[]} args.notifyTypes - The new set of failure types to notify about.
-   * @param {FrequencyType} args.reportFrequency - The new reporting frequency.
    * @returns {Empty | {error: string}} An empty object on success, or an error object.
    *
    * @requires (user, partner) in Partnerships
-   * @effects modify that partnership’s notifyTypes and reportFrequency
+   * @effects modify that partnership's notifyTypes
    */
   async updatePreferences({
     user,
     partner,
     notifyTypes,
-    reportFrequency,
   }: {
     user: User;
     partner: User;
     notifyTypes: FailureType[];
-    reportFrequency: FrequencyType;
   }): Promise<Empty | { error: string }> {
     // requires: (user, partner) in Partnerships
     const partnership = await this.partnerships.findOne({ user, partner });
@@ -269,11 +243,11 @@ export default class AccountabilityConcept {
       return { error: "Partnership not found." };
     }
 
-    // effects: modify that partnership’s notifyTypes and reportFrequency
+    // effects: modify that partnership's notifyTypes
     try {
       const result = await this.partnerships.updateOne(
         { _id: partnership._id },
-        { $set: { notifyTypes, reportFrequency } },
+        { $set: { notifyTypes } },
       );
       if (result.matchedCount === 0) {
         return { error: "Partnership not found for update." };
@@ -465,9 +439,18 @@ export default class AccountabilityConcept {
         start: Date,
         endInclusive: Date,
       ) => {
-        // Build [start, nextDayOfEnd) to avoid UTC boundary issues
-        const startOfDay = new Date(start.getFullYear(), start.getMonth(), start.getDate(), 0, 0, 0, 0);
-        const endExclusive = new Date(endInclusive.getFullYear(), endInclusive.getMonth(), endInclusive.getDate() + 1, 0, 0, 0, 0);
+        // Build [start, nextDayOfEnd) using UTC to match how dates are stored
+        // start and endInclusive are already UTC midnight dates from parseDateString
+        const startOfDay = new Date(Date.UTC(
+          start.getUTCFullYear(),
+          start.getUTCMonth(),
+          start.getUTCDate()
+        ));
+        const endExclusive = new Date(Date.UTC(
+          endInclusive.getUTCFullYear(),
+          endInclusive.getUTCMonth(),
+          endInclusive.getUTCDate() + 1
+        ));
         const failures = await this.adherenceFailures
           .find({
             failingUser: failingUser,
@@ -493,60 +476,15 @@ export default class AccountabilityConcept {
       };
 
       try {
-        if (partnership.reportFrequency === FrequencyType.IMMEDIATE) {
-          // Immediate: check failures for *today*
-          const report = await getAndMarkFailures(
-            user,
-            currentDate,
-            currentDate,
-          );
-          if (report !== "No adherence failures for this period.") {
-            message = `Immediate Alert for ${partnership.partner}:\n${report}`;
-            shouldUpdateLastReportDate = true;
-          }
-        } else if (partnership.reportFrequency === FrequencyType.DAILY) {
-          // Daily: check failures for *yesterday*
-          const previousDay = new Date(currentDate);
-          previousDay.setDate(currentDate.getDate() - 1);
-          previousDay.setHours(0, 0, 0, 0); // Ensure it's start of local day
-
-          // Only report if last report was before the previous day (to avoid multiple reports for same day)
-          const lastReportForDaily = partnership.lastReportDate ? new Date(partnership.lastReportDate) : null;
-          lastReportForDaily?.setHours(0, 0, 0, 0);
-
-          if (!lastReportForDaily || lastReportForDaily.getTime() < currentDate.getTime()) {
-             const report = await getAndMarkFailures(
-                user,
-                previousDay,
-                previousDay,
-             );
-            if (report !== "No adherence failures for this period.") {
-              message = `Daily Report for ${partnership.partner}:\n${report}`;
-              shouldUpdateLastReportDate = true;
-            }
-          }
-        } else if (partnership.reportFrequency === FrequencyType.WEEKLY) {
-          // Weekly: check failures for the last 7 days
-          const sevenDaysAgo = new Date(currentDate);
-          sevenDaysAgo.setDate(currentDate.getDate() - 7);
-          sevenDaysAgo.setHours(0, 0, 0, 0); // Ensure it's start of local day
-
-          const lastReportForWeekly = partnership.lastReportDate ? new Date(partnership.lastReportDate) : null;
-          lastReportForWeekly?.setHours(0, 0, 0, 0);
-
-          // Only report if 7+ days have passed since the last report, or no report yet.
-          const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
-          if (!lastReportForWeekly || (currentDate.getTime() - lastReportForWeekly.getTime() >= sevenDaysMs)) {
-            const report = await getAndMarkFailures(
-              user,
-              sevenDaysAgo,
-              currentDate,
-            );
-            if (report !== "No adherence failures for this period.") {
-              message = `Weekly Report for ${partnership.partner}:\n${report}`;
-              shouldUpdateLastReportDate = true;
-            }
-          }
+        // Only handle Immediate reporting: check failures for *today*
+        const report = await getAndMarkFailures(
+          user,
+          currentDate,
+          currentDate,
+        );
+        if (report !== "No adherence failures for this period.") {
+          message = `Alert for ${partnership.partner}:\n${report}`;
+          shouldUpdateLastReportDate = true;
         }
 
         if (message) {

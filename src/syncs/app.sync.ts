@@ -102,22 +102,44 @@ export const UpdateCompetitionStatOnWakeTime: Sync = ({ u, dateStr, wakeUpSucces
   then: actions([CompetitionManager.recordStat, { u, dateStr, eventType: "WAKETIME", success: wakeUpSuccess }]),
 });
 
-// When a user FAILS a bedtime report, record it for accountability and trigger an update.
-export const RecordFailureOnBedTime: Sync = ({ u, dateStr }) => ({
+// When a user FAILS a bedtime report, record it for accountability (only if user has partnerships).
+export const RecordFailureOnBedTime: Sync = ({ u, dateStr, partnership }) => ({
   when: actions([SleepSchedule.reportBedTime, { u, dateStr }, { bedTimeSuccess: false }]),
-  then: actions(
-    [Accountability.recordFailure, { user: u, date: dateStr, failureType: "BEDTIME" }],
-    [Accountability.updateReports, { user: u, date: dateStr }],
-  ),
+  where: async (frames: Frames) => {
+    // Check if user has any partnerships where they are the accountability seeker
+    const partnershipFrames = await frames.query(Accountability._getPartnerships, { user: u }, { partnership });
+    const hasPrimaryPartnership = partnershipFrames.some((frame) => {
+      const partnershipRecord = frame[partnership]?.partnership ?? frame[partnership];
+      const currentUser = frame[u];
+      return partnershipRecord && currentUser && partnershipRecord.user === currentUser;
+    });
+    return hasPrimaryPartnership ? partnershipFrames : new Frames();
+  },
+  then: actions([Accountability.recordFailure, { user: u, date: dateStr, failureType: "BEDTIME" }]),
 });
 
-// When a user FAILS a wake-up time report, record it for accountability and trigger an update.
-export const RecordFailureOnWakeTime: Sync = ({ u, dateStr }) => ({
+// When a user FAILS a wake-up time report, record it for accountability (only if user has partnerships).
+export const RecordFailureOnWakeTime: Sync = ({ u, dateStr, partnership }) => ({
   when: actions([SleepSchedule.reportWakeUpTime, { u, dateStr }, { wakeUpSuccess: false }]),
-  then: actions(
-    [Accountability.recordFailure, { user: u, date: dateStr, failureType: "WAKETIME" }],
-    [Accountability.updateReports, { user: u, date: dateStr }],
-  ),
+  where: async (frames: Frames) => {
+    // Check if user has any partnerships where they are the accountability seeker
+    const partnershipFrames = await frames.query(Accountability._getPartnerships, { user: u }, { partnership });
+    console.log("[RecordFailureOnWakeTime] Partnership frames raw:", partnershipFrames);
+    const hasPrimaryPartnership = partnershipFrames.some((frame) => {
+      const partnershipRecord = frame[partnership]?.partnership ?? frame[partnership];
+      const currentUser = frame[u];
+      return partnershipRecord && currentUser && partnershipRecord.user === currentUser;
+    });
+    console.log("[RecordFailureOnWakeTime] Has primary partnership?", hasPrimaryPartnership);
+    return hasPrimaryPartnership ? partnershipFrames : new Frames();
+  },
+  then: actions([Accountability.recordFailure, { user: u, date: dateStr, failureType: "WAKETIME" }]),
+});
+
+// When a failure is recorded successfully, update reports.
+export const UpdateReportsAfterFailure: Sync = ({ u, dateStr }) => ({
+  when: actions([Accountability.recordFailure, { user: u, date: dateStr }, {}]),
+  then: actions([Accountability.updateReports, { user: u, date: dateStr }]),
 });
 
 // ============================================================================
@@ -209,10 +231,10 @@ export const StartCompetitionErrorResponse: Sync = ({ request, error }) => ({
 
 // --- Accountability Endpoints ---
 
-export const AddPartnerRequest: Sync = ({ request, session, user, partner, notifyTypes, reportFrequency }) => ({
-  when: actions([Requesting.request, { path: "/Accountability/addPartner", session, partner, notifyTypes, reportFrequency }, { request }]),
+export const AddPartnerRequest: Sync = ({ request, session, user, partner, notifyTypes }) => ({
+  when: actions([Requesting.request, { path: "/Accountability/addPartner", session, partner, notifyTypes }, { request }]),
   where: async (frames: Frames) => frames.query(Sessioning._getUser, { session }, { user }),
-  then: actions([Accountability.addPartner, { user, partner, notifyTypes, reportFrequency }]),
+  then: actions([Accountability.addPartner, { user, partner, notifyTypes }]),
 });
 export const AddPartnerResponse: Sync = ({ request }) => ({
   when: actions(
@@ -229,10 +251,10 @@ export const AddPartnerErrorResponse: Sync = ({ request, error }) => ({
   then: actions([Requesting.respond, { request, error }]),
 });
 
-export const UpdatePreferencesRequest: Sync = ({ request, session, user, partner, notifyTypes, reportFrequency }) => ({
-  when: actions([Requesting.request, { path: "/Accountability/updatePreferences", session, partner, notifyTypes, reportFrequency }, { request }]),
+export const UpdatePreferencesRequest: Sync = ({ request, session, user, partner, notifyTypes }) => ({
+  when: actions([Requesting.request, { path: "/Accountability/updatePreferences", session, partner, notifyTypes }, { request }]),
   where: async (frames: Frames) => frames.query(Sessioning._getUser, { session }, { user }),
-  then: actions([Accountability.updatePreferences, { user, partner, notifyTypes, reportFrequency }]),
+  then: actions([Accountability.updatePreferences, { user, partner, notifyTypes }]),
 });
 export const UpdatePreferencesResponse: Sync = ({ request }) => ({
   when: actions(
