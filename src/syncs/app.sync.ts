@@ -295,22 +295,83 @@ export const RemovePartnerErrorResponse: Sync = ({ request, error }) => ({
 // 4. API Endpoints for Queries (Authenticated)
 // ============================================================================
 
-export const GetMyCompetitionsRequest: Sync = ({ request, session, user, competitions }) => ({
+// export const GetMyCompetitionsRequest: Sync = ({ request, session, user, competition, competitions }) => ({
+//   when: actions([Requesting.request, { path: "/CompetitionManager/_getCompetitionsForUser", session }, { request }]),
+//   where: async (frames: Frames) => {
+//     const originalFrame = frames[0];
+//     frames = await frames.query(Sessioning._getUser, { session }, { user });
+//     if (frames.length === 0) {
+//       return new Frames({ ...originalFrame, [competitions]: [] });
+//     }
+
+//     console.log("[GetMyCompetitionsRequest] Before _getCompetitionsForUser, frames:", frames);
+//     const resultFrames = await frames.query(CompetitionManager._getCompetitionsForUser, { user }, { competition });
+//     console.log("[GetMyCompetitionsRequest] After _getCompetitionsForUser, resultFrames:", resultFrames);
+
+//     if (resultFrames.length === 0) {
+//       return new Frames({ ...originalFrame, ...frames[0], [competitions]: [] });
+//     }
+
+//     const collected = resultFrames.collectAs([competition], competitions);
+//     console.log("[GetMyCompetitionsRequest] Collected competitions:", collected);
+//     return new Frames({ ...originalFrame, ...frames[0], ...collected[0] });
+//   },
+//   then: actions([Requesting.respond, { request, competitions }]),
+// });
+export const GetMyCompetitionsRequest: Sync = ({ request, session, user, competition, results }) => ({
   when: actions([Requesting.request, { path: "/CompetitionManager/_getCompetitionsForUser", session }, { request }]),
   where: async (frames: Frames) => {
+    const originalFrame = frames[0];
+    console.log("[GetMyCompetitionsRequest] Received request. session:", originalFrame?.[session], "request:", originalFrame?.[request]);
+    console.log("[GetMyCompetitionsRequest] Initial frames:", frames);
+    // 1) Authenticate
     frames = await frames.query(Sessioning._getUser, { session }, { user });
-    return await frames.query(CompetitionManager._getCompetitionsForUser, { user }, { competitions });
+    console.log("[GetMyCompetitionsRequest] After _getUser, frames:", frames);
+    if (frames.length > 0) {
+      console.log("[GetMyCompetitionsRequest] Bound user:", frames[0]?.[user]);
+    }
+    // 2) Query competitions per user as singular binding per frame
+    const resultFrames = await frames.query(CompetitionManager._getCompetitionsForUser, { user }, { competition });
+    console.log("[GetMyCompetitionsRequest] resultFrames (per competition):", resultFrames);
+    if (resultFrames.length === 0) {
+      console.log("[GetMyCompetitionsRequest] No competitions found. Returning empty results.");
+      return new Frames({ ...originalFrame, [results]: [] });
+    }
+    // 3) Collect into a single array
+    const collected = resultFrames.collectAs([competition], results);
+    console.log("[GetMyCompetitionsRequest] Collected results:", collected);
+    return new Frames({ ...originalFrame, ...collected[0] });
   },
-  then: actions([Requesting.respond, { request, competitions }]),
+  then: actions([Requesting.respond, { request, results }]),
 });
 
-export const GetLeaderboardRequest: Sync = ({ request, session, competitionId, leaderboard }) => ({
+export const GetLeaderboardRequest: Sync = ({ request, session, competitionId, entry, results }) => ({
   when: actions([Requesting.request, { path: "/CompetitionManager/_getLeaderboard", session, competitionId }, { request }]),
   where: async (frames: Frames) => {
-    frames = await frames.query(Sessioning._getUser, { session }, {}); // Auth check
-    return await frames.query(CompetitionManager._getLeaderboard, { competitionId }, { leaderboard });
+    const original = frames[0];
+    // 1) Auth
+    frames = await frames.query(Sessioning._getUser, { session }, {});
+    if (frames.length === 0) return new Frames({ ...original, [results]: [] });
+
+    // 2) Query leaderboard as singular entries per frame
+    const resultFrames = await frames.query(CompetitionManager._getLeaderboard, { competitionId }, { entry });
+    if (resultFrames.length === 0) return new Frames({ ...original, [results]: [] });
+
+    // 3) Collect entries into a single array and extract plain objects
+    const collected = resultFrames.collectAs([entry], results);
+    console.log("[GetLeaderboardRequest] Collected results:", collected);
+    if (collected.length > 0 && collected[0][results]) {
+      // Extract plain objects from collected array to avoid symbol-key serialization
+      const plainResults = Array.from(collected[0][results] as any[])
+        .map((item: any) => {
+          const e = item?.entry ?? item;
+          return e && typeof e === "object" ? { ...e } : item;
+        });
+      return new Frames({ ...original, [results]: plainResults });
+    }
+    return new Frames({ ...original, [results]: [] });
   },
-  then: actions([Requesting.respond, { request, leaderboard }]),
+  then: actions([Requesting.respond, { request, results }]),
 });
 
 export const GetMySleepSlotsRequest: Sync = ({ request, session, user, sleepSlots }) => ({
@@ -339,6 +400,7 @@ export const GetMyPartnershipsRequest: Sync = ({ request, session, user, partner
     // Query now returns Array<{partnership: Partnership}> - each becomes a separate frame
     // Use collectAs to collect all partnerships into a single array
     const resultFrames = await frames.query(Accountability._getPartnerships, { user }, { partnership });
+    console.log("[GetMyPartnershipsRequest] Result frames:", resultFrames);
     if (resultFrames.length > 0) {
       const collected = resultFrames.collectAs([partnership], partnerships);
       return new Frames({ ...originalFrame, ...frames[0], ...collected[0] });

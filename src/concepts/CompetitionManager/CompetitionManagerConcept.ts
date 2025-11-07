@@ -419,9 +419,7 @@ export default class CompetitionManagerConcept {
    */
   async _getLeaderboard(
     { competitionId }: { competitionId: CompetitionId },
-  ): Promise<
-  | { position: number; userId: User; totalScore: number }[]
->
+  ): Promise<Array<{ entry: { position: number; userId: User; totalScore: number } }>>
   {
     const competition = await this.competitions.findOne({ _id: competitionId });
 
@@ -471,7 +469,8 @@ export default class CompetitionManagerConcept {
       lastScore = currentEntry.totalScore;
     }
 
-    return rankedLeaderboard;
+    // Return in query-friendly shape for sync engine: one frame per entry
+    return rankedLeaderboard.map((e) => ({ entry: e }));
   }
 
   /**
@@ -537,11 +536,20 @@ export default class CompetitionManagerConcept {
 
   async _getCompetitionsForUser(
     { user }: { user: User },
-  ): Promise<Competition[] | { error: string }> {
+  ): Promise<Array<{ competition: Competition }>> {
     try {
-      const competitions = await this.competitions.find({ participants: user, active: true }).toArray();
-      return competitions;
+      console.log("[_getCompetitionsForUser] input user:", user);
+      const competitions = await this.competitions
+        .find({ participants: user, active: true })
+        .toArray();
+      console.log("[_getCompetitionsForUser] found competitions:", competitions.length);
+      if (competitions.length > 0) {
+        console.log("[_getCompetitionsForUser] sample competition:", competitions[0]);
+      }
+      // Return in query-friendly shape for sync engine: one frame per record
+      return competitions.map((c) => ({ competition: c }));
     } catch (e) {
+      console.error("[_getCompetitionsForUser] error:", e);
       return [];
     }
   }
