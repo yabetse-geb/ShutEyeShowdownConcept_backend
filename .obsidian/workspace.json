@@ -69,12 +69,40 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "design/brainstorming/CreatingSyncs.md",
+                "file": "README.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "CreatingSyncs"
+              "title": "README"
+            }
+          },
+          {
+            "id": "75be3c187972e210",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "Final Design Document.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "Final Design Document"
+            }
+          },
+          {
+            "id": "19691afec402fb4a",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "Reflection.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "Reflection"
             }
           },
           {
@@ -176,7 +204,7 @@
             }
           }
         ],
-        "currentTab": 4
+        "currentTab": 6
       }
     ],
     "direction": "vertical"
@@ -233,7 +261,7 @@
       }
     ],
     "direction": "horizontal",
-    "width": 200
+    "width": 457.5
   },
   "right": {
     "id": "ffc60e9763cc384c",
@@ -324,35 +352,37 @@
       "bases:Create new base": false
     }
   },
-  "active": "407cbf56cac36c50",
+  "active": "19691afec402fb4a",
   "lastOpenFiles": [
-    "design/concepts/Accountability/Implementation.md",
-    "context/design/concepts/Accountability/Implementation.md/20251105_190141.549e5ac4.md",
-    "context/design/concepts/Accountability/Implementation.md/steps/file.1e40dfc5.md",
-    "context/design/concepts/Accountability/Implementation.md/steps/solution.5a67f063.md",
-    "context/design/concepts/Accountability/Implementation.md/steps/response.aa065542.md",
-    "context/design/concepts/Accountability/Implementation.md/20251105_190041.5e686237.md",
-    "context/design/concepts/Accountability/Implementation.md/steps/implement.7ea51da2.md",
-    "context/design/concepts/Accountability/Implementation.md/steps/Concept.623eecb3.md",
-    "context/design/concepts/Accountability/Implementation.md/steps/file.a27e3f49.md",
-    "design/brainstorming/CreatingSyncs.md",
-    "src/syncs/app.sync.ts",
+    "Final Design Document.md",
+    "Reflection.md",
+    "context/design/concepts/SleepSchedule/SleepSchedule.md/20251107_203233.8f659db0.md",
+    "context/design/concepts/SleepSchedule/SleepSchedule.md/steps/response.e6182106.md",
+    "context/design/concepts/SleepSchedule/SleepSchedule.md/20251013_152609.64331b00.md",
+    "design/concepts/SleepSchedule/Changes to SleepSchedule.md",
+    "design/concepts/SleepSchedule/SleepSchedule.md",
+    "context/design/concepts/SleepSchedule/SleepSchedule.md/steps/concept.3f668895.md",
+    "context/design/concepts/SleepSchedule/SleepSchedule.md/steps/Concept.368e3fe2.md",
+    "context/design/concepts/SleepSchedule/SleepSchedule.md/steps/_.a6edd866.md",
+    "design/concepts/SleepSchedule/implementation.md",
+    "context/design/concepts/SleepSchedule/SleepSchedule.md/steps/concept.ed5954b5.md",
+    "context/design/concepts/SleepSchedule/SleepSchedule.md/steps/concept.b5619dd5.md",
+    "context/design/concepts/SleepSchedule/SleepSchedule.md/steps/Concept.400c56c8.md",
+    "context/design/concepts/SleepSchedule/SleepSchedule.md/steps/concept.9de7a5ee.md",
+    "context/design/concepts/SleepSchedule/SleepSchedule.md/steps/_.3731a859.md",
+    "context/design/concepts/SleepSchedule/SleepSchedule.md/steps/_.98d2324d.md",
+    "context/design/concepts/SleepSchedule/SleepSchedule.md/steps/_.33c1e6df.md",
+    "context/design/concepts/SleepSchedule/implementation.md/steps/_.04e090af.md",
+    "context/design/concepts/CompetitionManager/CompetitionManager.md/20251107_202159.c6842f38.md",
     "design/concepts/CompetitionManager/CompetitionManager.md",
-    "design/concepts/Accountability/Accountability.md",
-    "context/design/brainstorming/CreatingSyncs.md/20251104_170503.373f2e80.md",
-    "context/design/brainstorming/CreatingSyncs.md/steps/response.a0df4c2a.md",
-    "context/design/brainstorming/CreatingSyncs.md/20251104_170316.d1fa87f4.md",
-    "context/design/brainstorming/CreatingSyncs.md/steps/response.0a9e53ab.md",
-    "context/design/brainstorming/CreatingSyncs.md/steps/_.56447291.md",
-    "context/design/brainstorming/CreatingSyncs.md/steps/API Specification.01739bf4.md",
-    "context/design/brainstorming/CreatingSyncs.md/steps/API Specification.f3d496ef.md",
-    "context/design/brainstorming/CreatingSyncs.md/steps/API Specification.443e89b6.md",
-    "context/design/brainstorming/CreatingSyncs.md/steps/API Specification.f85c4ddf.md",
-    "context/design/brainstorming/CreatingSyncs.md/steps/API Specification.611dbf9c.md",
-    "context/design/brainstorming/CreatingSyncs.md/steps/response.e3bc5204.md",
-    "context/design/brainstorming/CreatingSyncs.md/steps/implement.756d08b8.md",
-    "context/design/brainstorming/CreatingSyncs.md/steps/implement.e18248e1.md",
-    "context/design/brainstorming/CreatingSyncs.md/steps/concept.43b9b577.md",
+    "context/design/concepts/CompetitionManager/CompetitionManager.md/steps/Concept.368e3fe2.md",
+    "context/design/concepts/CompetitionManager/CompetitionManager.md/steps/Concept.0d219fd7.md",
+    "design/concepts/CompetitionManager/Major changes to CompetitionManager.md",
+    "context/design/concepts/Accountability/Accountability.md/steps/Concept.64569894.md",
+    "context/design/concepts/Accountability/Accountability.md/20251107_200749.cb0e8f3d.md",
+    "tempname",
+    "Dockerfile",
+    "src/syncs/app.sync.ts",
     "context/design/brainstorming/CreatingSyncs.md/steps",
     "design/concepts/CompetitionManager/CompetitionManagerTest3.png",
     "design/concepts/CompetitionManager/CompetitionManagerTest2.png",
@@ -366,8 +396,6 @@
     "media/relative_linking.png",
     "media/linking.png",
     "design/concepts/Accountability/AccountabilityTest1.png",
-    "context/deno.json/desktop.ini",
-    "context/design/tools/api-extraction-from-spec.md/steps",
     "media/obsidian_settings.png",
     "Untitled.canvas",
     "design/concepts/SleepSchedule/SleepScheduleTest3.png",
